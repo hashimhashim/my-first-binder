@@ -15,7 +15,11 @@ export const PERMISSIONS = [
   'identity:lifecycle',
   'application:read',
   'application:write',
+  'catalog:read',
   'entitlement:write',
+  'role:write',
+  'grant:read',
+  'grant:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

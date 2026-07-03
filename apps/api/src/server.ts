@@ -20,6 +20,7 @@ import {
   listReviewerInbox,
   NotFoundError,
   PermissionDeniedError,
+  processLifecycleEvents,
   runProvisioningWorker,
   submitAccessRequest,
   systemContext,
@@ -201,13 +202,15 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     await confirmManualFulfillment(pool, ctx, (req.params as {id: string}).id);
     return {ok: true};
   });
-  // Dev/ops convenience: run one orchestration tick (enqueue + worker).
+  // Dev/ops convenience: run one orchestration tick — process JML events
+  // (birthright / leaver automation), enqueue jobs, execute connectors.
   app.post('/api/provisioning/tick', async (req) => {
     await auth(req);
     const sys = systemContext();
+    const lifecycle = await processLifecycleEvents(pool, sys);
     const enqueued = await enqueueProvisioningJobs(pool, sys);
     const run = await runProvisioningWorker(pool, sys, registry);
-    return {enqueued, run};
+    return {lifecycle: lifecycle.processed.length, enqueued, run};
   });
 
   // --- reviews -----------------------------------------------------------------------

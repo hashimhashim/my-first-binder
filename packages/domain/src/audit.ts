@@ -73,6 +73,10 @@ export const AUDIT_ACTIONS = [
   'sod_rule.created',
   'sod_rule.updated',
   'sod_violation.detected',
+
+  // reconciliation
+  'reconciliation.completed',
+  'reconciliation.drift_detected',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

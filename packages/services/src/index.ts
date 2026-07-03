@@ -9,3 +9,4 @@ export * from './requests.js';
 export * from './connectors.js';
 export * from './provisioning.js';
 export * from './reviews.js';
+export * from './lifecycle.js';

@@ -28,6 +28,9 @@ export async function createTestDb(prefix: string): Promise<TestDb> {
   await migrator.end();
 
   const pool = new pg.Pool({connectionString: dbUrl.toString(), max: 5});
+  // Teardown force-drops the database; swallow async termination errors on
+  // idle clients so a failing test doesn't cascade into an uncaught exception.
+  pool.on('error', () => {});
   return {
     pool,
     teardown: async () => {

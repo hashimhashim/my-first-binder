@@ -386,7 +386,7 @@ async function insertDirectGrant(
 // Grant lifecycle: activation, two-phase revocation
 // ---------------------------------------------------------------------------
 
-type GrantTable = 'role_assignments' | 'entitlement_assignments';
+export type GrantTable = 'role_assignments' | 'entitlement_assignments';
 
 async function transitionGrant(
   client: pg.PoolClient,
@@ -441,7 +441,28 @@ export async function activateGrant(
   grantId: string,
 ): Promise<void> {
   assertPermission(ctx, 'grant:write');
-  await withTransaction(pool, (client) => transitionGrant(client, ctx, table, grantId, 'ACTIVE'));
+  await withTransaction(pool, (client) => activateGrantTx(client, ctx, table, grantId));
+}
+
+/** Transaction-level activation, used inside provisioning job transactions. */
+export async function activateGrantTx(
+  client: pg.PoolClient,
+  ctx: AuthzContext,
+  table: GrantTable,
+  grantId: string,
+): Promise<void> {
+  await transitionGrant(client, ctx, table, grantId, 'ACTIVE');
+}
+
+/** Transaction-level revocation completion, used inside provisioning job transactions. */
+export async function completeRevocationTx(
+  client: pg.PoolClient,
+  ctx: AuthzContext,
+  table: GrantTable,
+  grantId: string,
+  reason: RevocationReason,
+): Promise<void> {
+  await transitionGrant(client, ctx, table, grantId, 'REVOKED', {revokedReason: reason});
 }
 
 export interface RevocationResult {

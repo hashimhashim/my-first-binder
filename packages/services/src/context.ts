@@ -23,6 +23,9 @@ export const PERMISSIONS = [
   'request:read',
   'request:submit',
   'request:approve',
+  'provisioning:read',
+  'provisioning:write',
+  'provisioning:confirm',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

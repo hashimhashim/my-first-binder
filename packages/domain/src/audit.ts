@@ -57,6 +57,7 @@ export const AUDIT_ACTIONS = [
   'provisioning_job.queued',
   'provisioning_job.completed',
   'provisioning_job.failed',
+  'provisioning_job.manual_routed',
   'provisioning_job.manual_confirmed',
   'provisioning_job.cancelled',
 

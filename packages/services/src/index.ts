@@ -6,3 +6,5 @@ export * from './applications.js';
 export * from './catalog.js';
 export * from './grants.js';
 export * from './requests.js';
+export * from './connectors.js';
+export * from './provisioning.js';

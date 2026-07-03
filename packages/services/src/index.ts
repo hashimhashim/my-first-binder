@@ -5,3 +5,4 @@ export * from './identities.js';
 export * from './applications.js';
 export * from './catalog.js';
 export * from './grants.js';
+export * from './requests.js';

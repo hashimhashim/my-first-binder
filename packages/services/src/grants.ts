@@ -119,6 +119,19 @@ export async function assignRoleToIdentity(
   input: AssignRoleInput,
 ): Promise<AssignRoleResult> {
   assertPermission(ctx, 'grant:write');
+  return withTransaction(pool, (client) => assignRoleTx(client, ctx, input));
+}
+
+/**
+ * Transaction-level variant used by the request-fulfillment pipeline, which
+ * must grant inside the approval transaction. Callers are responsible for
+ * authorization (either grant:write or an approved access request).
+ */
+export async function assignRoleTx(
+  client: pg.PoolClient,
+  ctx: AuthzContext,
+  input: AssignRoleInput,
+): Promise<AssignRoleResult> {
   const expiresAt = input.expiresAt ?? null;
   assertRoleAssignmentExpiry(input.assignmentType, {
     expiresAt,
@@ -126,7 +139,7 @@ export async function assignRoleToIdentity(
     now: new Date(),
   });
 
-  return withTransaction(pool, async (client) => {
+  {
     await assertIdentityCanReceiveAccess(client, input.identityId);
 
     const role = await client.query('SELECT status FROM business_roles WHERE id = $1', [
@@ -205,7 +218,7 @@ export async function assignRoleToIdentity(
     }
 
     return {roleAssignment, entitlementAssignments, skippedEntitlementIds};
-  });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -255,6 +268,15 @@ export async function grantExceptionAccess(
   input: GrantExceptionInput,
 ): Promise<GrantExceptionResult> {
   assertPermission(ctx, 'grant:write');
+  return withTransaction(pool, (client) => grantExceptionTx(client, ctx, input));
+}
+
+/** Transaction-level variant used by the request-fulfillment pipeline. */
+export async function grantExceptionTx(
+  client: pg.PoolClient,
+  ctx: AuthzContext,
+  input: GrantExceptionInput,
+): Promise<GrantExceptionResult> {
   if (input.justification.trim().length === 0) {
     throw new InvariantViolation(
       'JUSTIFICATION_REQUIRED',
@@ -263,7 +285,7 @@ export async function grantExceptionAccess(
   }
   assertNoSelfApproval(input.approvedByIdentityId, input.identityId);
 
-  return withTransaction(pool, async (client) => {
+  {
     const assignment = await insertDirectGrant(client, ctx, {
       identityId: input.identityId,
       entitlementId: input.entitlementId,
@@ -298,7 +320,7 @@ export async function grantExceptionAccess(
       },
     });
     return {assignment, policyExceptionId};
-  });
+  }
 }
 
 interface DirectGrantInput {

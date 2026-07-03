@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {AUDIT_ACTIONS, isAuditAction, REDACTED, redact} from '../src/audit.js';
+import {AUDIT_ACTIONS, findSecretShapedKeys, isAuditAction, REDACTED, redact} from '../src/audit.js';
 
 describe('audit action catalog', () => {
   it('all actions match the DB CHECK pattern entity.verb', () => {
@@ -42,6 +42,18 @@ describe('redaction', () => {
     const input = {token: 'secret-token'};
     redact(input);
     expect(input.token).toBe('secret-token');
+  });
+
+  it('finds secret-shaped keys with their paths', () => {
+    expect(
+      findSecretShapedKeys({
+        keyVaultSecretName: 'graph-client', // matches "secret" — rejected by design
+        endpoints: [{url: 'https://graph', apiKey: 'x'}],
+        tenantId: 'contoso',
+      }).sort(),
+    ).toEqual(['endpoints[0].apiKey', 'keyVaultSecretName']);
+    expect(findSecretShapedKeys({tenantId: 'contoso', keyVaultRef: 'graph-client'})).toEqual([]);
+    expect(findSecretShapedKeys(null)).toEqual([]);
   });
 
   it('handles primitives, null, and cycles', () => {

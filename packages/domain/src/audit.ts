@@ -98,6 +98,30 @@ export function redact<T>(value: T): T {
   return redactValue(value, new WeakSet()) as T;
 }
 
+/**
+ * Returns the (dot-)paths of all secret-shaped keys in a JSON-ish value.
+ * Used to REJECT payloads that must never contain secrets at all
+ * (e.g. applications.connector_config, provisioning job payloads).
+ */
+export function findSecretShapedKeys(value: unknown, prefix = ''): string[] {
+  if (value === null || typeof value !== 'object') {
+    return [];
+  }
+  const found: string[] = [];
+  if (Array.isArray(value)) {
+    value.forEach((item, i) => found.push(...findSecretShapedKeys(item, `${prefix}[${i}]`)));
+    return found;
+  }
+  for (const [key, val] of Object.entries(value)) {
+    const path = prefix === '' ? key : `${prefix}.${key}`;
+    if (SECRET_KEY_PATTERN.test(key)) {
+      found.push(path);
+    }
+    found.push(...findSecretShapedKeys(val, path));
+  }
+  return found;
+}
+
 function redactValue(value: unknown, seen: WeakSet<object>): unknown {
   if (value === null || typeof value !== 'object') {
     return value;

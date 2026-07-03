@@ -1,0 +1,27 @@
+{
+  "name": "@iam/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "seed": "tsx scripts/seed.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iam/db": "*",
+    "@iam/domain": "*",
+    "@iam/entra": "*",
+    "@iam/services": "*",
+    "fastify": "^5.3.2",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.4",
+    "tsx": "^4.20.3",
+    "typescript": "6.0.2",
+    "vitest": "^3.2.4"
+  }
+}

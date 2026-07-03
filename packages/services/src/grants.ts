@@ -489,7 +489,7 @@ export async function requestEntitlementRevocation(
   );
 }
 
-async function requestEntitlementRevocationTx(
+export async function requestEntitlementRevocationTx(
   client: pg.PoolClient,
   ctx: AuthzContext,
   grantId: string,
@@ -542,8 +542,19 @@ export async function requestRoleRevocation(
   reason: RevocationReason,
 ): Promise<RevocationResult> {
   assertPermission(ctx, 'grant:write');
+  return withTransaction(pool, (client) =>
+    requestRoleRevocationTx(client, ctx, roleAssignmentId, reason),
+  );
+}
 
-  return withTransaction(pool, async (client) => {
+/** Transaction-level variant used by review decisions and the JML pipeline. */
+export async function requestRoleRevocationTx(
+  client: pg.PoolClient,
+  ctx: AuthzContext,
+  roleAssignmentId: string,
+  reason: RevocationReason,
+): Promise<RevocationResult> {
+  {
     const {rows} = await client.query(
       'SELECT status FROM role_assignments WHERE id = $1 FOR UPDATE',
       [roleAssignmentId],
@@ -574,7 +585,7 @@ export async function requestRoleRevocation(
       result.cancelled.push(...sub.cancelled);
     }
     return result;
-  });
+  }
 }
 
 /** Called by the provisioning orchestrator when a role REVOKE completes. */

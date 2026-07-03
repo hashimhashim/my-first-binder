@@ -60,10 +60,14 @@ export async function enqueueProvisioningJobs(
                 'identityId', ea.identity_id,
                 'entitlementCode', e.code,
                 'externalRef', e.external_ref,
-                'application', a.name)
+                'application', a.name,
+                'accountIdentifier', ia.account_identifier,
+                'accountExternalRef', ia.external_ref)
        FROM entitlement_assignments ea
        JOIN entitlements e ON e.id = ea.entitlement_id
        JOIN applications a ON a.id = e.application_id
+       LEFT JOIN identity_accounts ia
+         ON ia.identity_id = ea.identity_id AND ia.application_id = e.application_id
        WHERE ea.status = 'PENDING_PROVISIONING'
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING id`,
@@ -76,10 +80,14 @@ export async function enqueueProvisioningJobs(
                 'identityId', ea.identity_id,
                 'entitlementCode', e.code,
                 'externalRef', e.external_ref,
-                'application', a.name)
+                'application', a.name,
+                'accountIdentifier', ia.account_identifier,
+                'accountExternalRef', ia.external_ref)
        FROM entitlement_assignments ea
        JOIN entitlements e ON e.id = ea.entitlement_id
        JOIN applications a ON a.id = e.application_id
+       LEFT JOIN identity_accounts ia
+         ON ia.identity_id = ea.identity_id AND ia.application_id = e.application_id
        WHERE ea.status = 'PENDING_REVOCATION'
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING id`,

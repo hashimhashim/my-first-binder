@@ -152,21 +152,29 @@ const PERSONA_ROLES = {
   'sam@contoso.com': 'IAM.User,IAM.Approver,IAM.Auditor',
   'iam-admin@contoso.com': 'IAM.Admin',
 };
-let state = {view: 'access', actor: localStorage.getItem('actor') || 'alice@contoso.com', me: null, counts: {}};
+let state = {view: 'access', actor: localStorage.getItem('actor') || 'alice@contoso.com', me: null, counts: {},
+  authMode: 'dev', msal: null, account: null, apiScope: null};
 
 const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const rolesFor = (actor) => PERSONA_ROLES[actor] || 'IAM.User';
 
+async function bearerToken() {
+  const request = {scopes: [state.apiScope], account: state.account};
+  try {
+    return (await state.msal.acquireTokenSilent(request)).accessToken;
+  } catch {
+    return (await state.msal.acquireTokenPopup(request)).accessToken;
+  }
+}
+
 async function api(path, options = {}) {
+  const authHeaders = state.authMode === 'entra'
+    ? {Authorization: 'Bearer ' + await bearerToken()}
+    : {'x-dev-actor': state.actor, 'x-dev-roles': rolesFor(state.actor)};
   const res = await fetch(path, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-dev-actor': state.actor,
-      'x-dev-roles': rolesFor(state.actor),
-      ...(options.headers || {}),
-    },
+    headers: {'Content-Type': 'application/json', ...authHeaders, ...(options.headers || {})},
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || res.statusText);
@@ -407,14 +415,49 @@ function renderNav() {
 async function render() {
   await refreshCounts();
   renderNav();
-  $('#who').textContent = rolesFor(state.actor);
+  if (state.authMode === 'dev') $('#who').textContent = rolesFor(state.actor);
   const main = $('#main');
   main.innerHTML = '<p class="lede">Loading…</p>';
   try { await RENDERERS[state.view](main); }
   catch (err) { main.innerHTML = `<div class="panel"><div class="empty-state">🔒 ${esc(err.message)}</div></div>`; }
 }
 
-async function boot() {
+function loadMsal() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://alcdn.msauth.net/browser/2.38.4/js/msal-browser.min.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('could not load the Microsoft sign-in library'));
+    document.head.appendChild(script);
+  });
+}
+
+async function bootEntra(config) {
+  await loadMsal();
+  state.authMode = 'entra';
+  state.apiScope = config.apiScope;
+  state.msal = new msal.PublicClientApplication({
+    auth: {
+      clientId: config.clientId,
+      authority: `https://login.microsoftonline.com/${config.tenantId}`,
+      redirectUri: window.location.origin,
+    },
+    cache: {cacheLocation: 'localStorage'},
+  });
+  await state.msal.initialize();
+  state.account = state.msal.getAllAccounts()[0] ?? null;
+  if (!state.account) {
+    const result = await state.msal.loginPopup({scopes: [config.apiScope]});
+    state.account = result.account;
+  }
+  // Signed-in identity replaces the persona switcher.
+  const me = await api('/api/me');
+  $('#persona').style.display = 'none';
+  $('#who').textContent = `${me.identity.displayName} · ${me.appRoles.join(', ')}`;
+  render();
+}
+
+async function bootDev() {
   const {personas} = await fetch('/api/dev/personas').then((r) => r.json());
   const select = $('#persona');
   select.innerHTML = personas
@@ -430,6 +473,15 @@ async function boot() {
     state.actor = select.options[0].value;
   }
   render();
+}
+
+async function boot() {
+  const config = await fetch('/api/config').then((r) => r.json()).catch(() => ({mode: 'dev'}));
+  if (config.mode === 'entra') {
+    try { await bootEntra(config); return; }
+    catch (err) { toast('Sign-in failed: ' + err.message, true); return; }
+  }
+  await bootDev();
 }
 boot();
 </script>

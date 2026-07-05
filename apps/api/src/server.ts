@@ -37,6 +37,8 @@ export interface ServerOptions {
   pool: pg.Pool;
   verifier: EntraTokenVerifier | null;
   registry: ConnectorRegistry;
+  /** SPA sign-in config, served to the browser when Entra auth is active. */
+  spa?: {tenantId: string; clientId: string; apiScope: string} | null;
 }
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -65,6 +67,14 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   });
 
   // --- session -------------------------------------------------------------
+  // Public: tells the browser which sign-in mode to use (no secrets here).
+  app.get('/api/config', async () => {
+    if (options.verifier !== null && options.spa) {
+      return {mode: 'entra', ...options.spa};
+    }
+    return {mode: options.verifier !== null ? 'entra-api-only' : 'dev'};
+  });
+
   app.get('/api/me', async (req) => {
     const {identity, appRoles, ctx} = await auth(req);
     return {identity, appRoles, permissions: [...ctx.permissions]};

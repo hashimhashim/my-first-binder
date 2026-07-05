@@ -1,6 +1,12 @@
-# One-command demo: `docker compose up`
-# Starts PostgreSQL, waits for it, seeds a demo world, and serves the app
-# at http://localhost:4000
+# `docker compose up` — persistent by default.
+#
+# First boot: creates the database, applies the schema, seeds the demo world.
+# Every boot after that: applies any new migrations and KEEPS your data.
+# To wipe back to a fresh demo:      RESET_DEMO=true docker compose up
+# To destroy the data volume too:    docker compose down -v
+#
+# Real Entra ID sign-in (optional): put the values in a .env file next to
+# this file and restart — see docs/iam/USER-GUIDE.md §5.2.
 services:
   db:
     image: postgres:16
@@ -8,6 +14,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 3s
@@ -21,5 +29,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      RESET_DEMO: ${RESET_DEMO:-false}
+      # API sign-in (switches the app from dev personas to Entra bearer auth)
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-}
+      # Browser sign-in (SPA app registration + the scope it requests)
+      ENTRA_SPA_CLIENT_ID: ${ENTRA_SPA_CLIENT_ID:-}
+      ENTRA_API_SCOPE: ${ENTRA_API_SCOPE:-}
+      # Graph provisioning connector (client credentials)
+      GRAPH_TENANT_ID: ${GRAPH_TENANT_ID:-}
+      GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID:-}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET:-}
+      # Background worker cadence (ms); 0 disables
+      WORKER_INTERVAL_MS: ${WORKER_INTERVAL_MS:-60000}
     ports:
       - "8090:8090"
+
+volumes:
+  pgdata:

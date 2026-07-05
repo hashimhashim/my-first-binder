@@ -1,13 +1,13 @@
 #!/bin/sh
-# Seeds a fresh demo database, then starts the API + UI.
-# Re-running (e.g. after a restart) resets to a clean, known demo state.
+# First boot: create + migrate + seed. Later boots: migrate only, keep data.
+# RESET_DEMO=true forces a wipe + reseed.
 set -e
 
-echo "==> Applying schema and seeding demo data..."
-DATABASE_URL="postgres://postgres:postgres@db:5432/postgres" \
-  npm run seed --workspace @iam/api
+export DATABASE_URL="postgres://postgres:postgres@db:5432/postgres"
+npx tsx /app/apps/api/scripts/init.ts
 
 echo "==> Starting IAM Platform — open http://localhost:8090"
+cd /app/apps/api
 DATABASE_URL="postgres://postgres:postgres@db:5432/iam_app" \
   PORT=8090 \
-  npm start --workspace @iam/api
+  npx tsx src/main.ts

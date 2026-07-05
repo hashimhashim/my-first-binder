@@ -7,7 +7,7 @@ echo "==> Applying schema and seeding demo data..."
 DATABASE_URL="postgres://postgres:postgres@db:5432/postgres" \
   npm run seed --workspace @iam/api
 
-echo "==> Starting IAM Platform on http://localhost:4000"
+echo "==> Starting IAM Platform — open http://localhost:8090"
 DATABASE_URL="postgres://postgres:postgres@db:5432/iam_app" \
-  PORT=4000 \
+  PORT=8090 \
   npm start --workspace @iam/api

@@ -14,5 +14,5 @@ RUN npm install
 # Copy the rest of the source.
 COPY . .
 
-EXPOSE 4000
+EXPOSE 8090
 CMD ["sh", "/app/docker/entrypoint.sh"]

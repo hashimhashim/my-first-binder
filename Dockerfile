@@ -14,10 +14,6 @@ RUN npm install
 # Copy the rest of the source.
 COPY . .
 
-# Normalise line endings on the shell entrypoint. Git on Windows may check
-# the file out with CRLF, which the Linux shell cannot parse; strip any CR so
-# the container runs regardless of the host OS.
-RUN sed -i 's/\r$//' /app/docker/entrypoint.sh
-
+# Node entrypoint (exec form, no shell) — immune to Windows CRLF line endings.
 EXPOSE 8090
-CMD ["sh", "/app/docker/entrypoint.sh"]
+CMD ["npx", "tsx", "apps/api/scripts/dockerStart.ts"]

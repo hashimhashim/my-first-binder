@@ -1,0 +1,31 @@
+# Enterprise IAM (Python/FastAPI + React) — one command:  docker compose up --build
+# App + UI on http://localhost:8000 ; PostgreSQL persisted in a volume.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: iam_py
+    volumes:
+      - iam_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      IAM_DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/iam_py
+      IAM_JWT_SECRET: ${IAM_JWT_SECRET:-dev-only-change-me}
+      IAM_CREDENTIAL_KEY: ${IAM_CREDENTIAL_KEY:-dev-credential-key-change-me}
+    ports:
+      - "8000:8000"
+
+volumes:
+  iam_pgdata:

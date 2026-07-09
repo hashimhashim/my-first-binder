@@ -1,5 +1,6 @@
 # Enterprise IAM (Python/FastAPI + React) — one command:  docker compose up --build
-# App + UI on http://localhost:8000 ; PostgreSQL persisted in a volume.
+# App + UI on http://localhost:8010 ; PostgreSQL persisted in a volume.
+# (8010 chosen to avoid the common port-8000 conflict.)
 services:
   db:
     image: postgres:16
@@ -25,7 +26,7 @@ services:
       IAM_JWT_SECRET: ${IAM_JWT_SECRET:-dev-only-change-me}
       IAM_CREDENTIAL_KEY: ${IAM_CREDENTIAL_KEY:-dev-credential-key-change-me}
     ports:
-      - "8000:8000"
+      - "8010:8000"
 
 volumes:
   iam_pgdata:

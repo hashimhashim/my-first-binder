@@ -12,7 +12,7 @@ cd iam-python
 docker compose up --build
 ```
 
-Open **http://localhost:8000**. Sign in with a demo account
+Open **http://localhost:8010**. Sign in with a demo account
 (`admin@contoso.com`, `mona@contoso.com`, or `alice@contoso.com`) — password
 `Passw0rd!`. Data persists in a Docker volume across restarts.
 

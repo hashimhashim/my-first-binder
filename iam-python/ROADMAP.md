@@ -33,14 +33,37 @@ the gap to full enterprise breadth, Microsoft-first.
 
 ---
 
-## Phase A — Microsoft Identity Foundation  ·  ~4 weeks  (BUILD FIRST)
+## Phase A.0 — Prove the framework with the Aegis SIEM  ·  ✅ DONE
 
-The base every later phase depends on. Nothing in B–F is worth building
-until identity data flows reliably from the real enterprise sources.
+Before wiring external Microsoft systems, IAM manages the in-house **Aegis
+SIEM** as its first downstream application — the test case that proves the
+whole connector + provisioning architecture end to end. Every future
+integration (AD, Entra ID, PAM, GRC, SOAR, …) is now just another connector
+on this same proven path.
+
+| Feature | Status |
+|---|---|
+| `AEGIS_SIEM` connector (create/update/disable/enable, config-gated delete, assign/remove role, sync list, provisioning verification) | ✅ Done |
+| Hire in IAM → user created in SIEM with mapped role | ✅ Verified end to end |
+| Terminate in IAM → user disabled in SIEM | ✅ Verified end to end |
+| Role assignment synchronised (business role → SIEM role) | ✅ Verified |
+| Directory sync of SIEM (drift detection) | ✅ Verified |
+| Every action audited | ✅ |
+| Automated tests (connector + sync diff) | ✅ 12 passing |
+| Provisioning fix: `CREATE_USER` before `ASSIGN_GROUP`, deterministic op ordering | ✅ (benefits every connector) |
+
+The connector points at a real Aegis SIEM by setting `config.base_url` +
+`credentials.token`; override `config.paths` if the real API differs from the
+documented default contract (see `connectors/aegis_siem.py`).
+
+## Phase A — Microsoft Identity Foundation  ·  ~4 weeks
+
+The base every later Microsoft phase depends on. With the framework now proven
+against the SIEM, these are additional connectors on the same path.
 
 | Feature | Status | Effort |
 |---|---|---|
-| **Directory Synchronization Engine** (scheduled + full + incremental, change detection: new/updated/disabled/deleted users, group/role changes) | 🟡 (run-on-demand exists) | 6 d |
+| **Directory Synchronization Engine** (scheduled + full + incremental, change detection: untracked/missing/status/group drift) | ✅ Done | — |
 | **Active Directory connector** (LDAP/LDAPS bind, OU-aware, group sync) | 🟡 (generic LDAP connector done) | 3 d |
 | **Microsoft Entra ID connector** (Graph API: users, groups, app role assignments) | ✅ Done (TypeScript side) / 🟡 (port into Python module) | 3 d |
 | **Generic LDAP connector** | ✅ Done | — |

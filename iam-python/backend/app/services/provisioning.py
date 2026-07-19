@@ -68,6 +68,16 @@ def queue_job(
     return job
 
 
+# Execution order within a batch: the account object must exist before group
+# or role memberships are added, and on removal the memberships come off before
+# the account is disabled/deleted. Lower number runs first.
+_OP_ORDER = {
+    "CREATE_USER": 0, "ENABLE_USER": 1, "UPDATE_USER": 2, "ASSIGN_GROUP": 3,
+    "RESET_PASSWORD": 4, "UNLOCK_USER": 4, "REVOKE_GROUP": 5, "DISABLE_USER": 6,
+    "DELETE_USER": 7,
+}
+
+
 def run_pending_jobs(db: Session, *, max_attempts: int = 4) -> dict:
     """Execute all QUEUED/retryable jobs through their connectors."""
     jobs = list(
@@ -75,6 +85,9 @@ def run_pending_jobs(db: Session, *, max_attempts: int = 4) -> dict:
             select(ProvisioningJob).where(ProvisioningJob.status.in_(["QUEUED", "FAILED"]))
         )
     )
+    # Deterministic dependency ordering (create-before-assign, revoke-before-
+    # disable) regardless of insertion-timestamp ties.
+    jobs.sort(key=lambda j: (_OP_ORDER.get(j.operation, 9), j.created_at))
     completed, failed, manual = 0, 0, 0
     for job in jobs:
         app = db.get(Application, job.application_id)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .aegis_siem import AegisSiemConnector
 from .base import Connector
 from .ldap_dir import LdapConnector
 from .mock_directory import MockDirectoryConnector
@@ -22,7 +23,7 @@ def register(cls: type[Connector]) -> type[Connector]:
     return cls
 
 
-for _cls in (MockDirectoryConnector, RestConnector, ScimConnector, LdapConnector):
+for _cls in (AegisSiemConnector, MockDirectoryConnector, RestConnector, ScimConnector, LdapConnector):
     register(_cls)
 
 

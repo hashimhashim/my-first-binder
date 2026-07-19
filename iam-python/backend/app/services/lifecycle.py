@@ -65,33 +65,50 @@ def assign_role(
     return ra
 
 
+def _ensure_account(db, employee, app, group_name, role_id):
+    """Find or create the AppAccount row for an employee's account (group_name
+    is None for the base account, or the specific group/role membership)."""
+    account = db.scalar(
+        select(AppAccount).where(
+            AppAccount.employee_id == employee.id,
+            AppAccount.application_id == app.id,
+            AppAccount.group_name.is_(None) if group_name is None
+            else AppAccount.group_name == group_name,
+        )
+    )
+    if account is None:
+        account = AppAccount(
+            employee_id=employee.id, application_id=app.id,
+            account_identifier=employee.email, group_name=group_name,
+            source_role_id=role_id, status="PENDING",
+        )
+        db.add(account)
+        db.flush()
+    return account
+
+
 def _provision_role(db: Session, employee: Employee, role: BusinessRole, *, actor_id: str | None) -> None:
-    for ent in _entitlements_for_roles(db, [role.id]):
+    ents = _entitlements_for_roles(db, [role.id])
+    provisioned_apps: set[str] = set()
+    for ent in ents:
         app = db.get(Application, ent.application_id)
-        account = db.scalar(
-            select(AppAccount).where(
-                AppAccount.employee_id == employee.id,
-                AppAccount.application_id == app.id,
-                AppAccount.group_name.is_(ent.group_name) if ent.group_name is None
-                else AppAccount.group_name == ent.group_name,
+        # 1. The account object must exist before any group/role is added.
+        #    Queue one CREATE_USER per application (idempotent), ahead of the
+        #    group jobs (execution order is enforced in run_pending_jobs).
+        if app.id not in provisioned_apps:
+            provisioned_apps.add(app.id)
+            base = _ensure_account(db, employee, app, None, role.id)
+            provisioning.queue_job(
+                db, operation="CREATE_USER", application=app, employee=employee,
+                app_account=base, idempotency_key=f"CREATE_USER:{base.id}",
             )
-        )
-        if account is None:
-            account = AppAccount(
-                employee_id=employee.id,
-                application_id=app.id,
-                account_identifier=employee.email,
-                group_name=ent.group_name,
-                source_role_id=role.id,
-                status="PENDING",
+        # 2. A group/role entitlement adds a membership to that account.
+        if ent.group_name:
+            account = _ensure_account(db, employee, app, ent.group_name, role.id)
+            provisioning.queue_job(
+                db, operation="ASSIGN_GROUP", application=app, employee=employee,
+                app_account=account, idempotency_key=f"ASSIGN_GROUP:{account.id}",
             )
-            db.add(account)
-            db.flush()
-        op = "ASSIGN_GROUP" if ent.group_name else "CREATE_USER"
-        provisioning.queue_job(
-            db, operation=op, application=app, employee=employee, app_account=account,
-            idempotency_key=f"{op}:{account.id}",
-        )
 
 
 # --------------------------------------------------------------------------- JML

@@ -70,6 +70,7 @@ def submit(body: RequestIn, user: Employee = Depends(current_user), db: Session 
     if not chain:  # no approver needed → auto-approve
         req.status = "APPROVED"
         _fulfill(db, req)
+        provisioning.run_pending_jobs(db)  # push queued jobs to the connector now
     audit.record(db, action="request.submitted", entity_type="access_request", entity_id=req.id,
                  actor_id=user.id, detail={"target": body.target_type})
     db.commit()

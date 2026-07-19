@@ -80,6 +80,10 @@ _OP_ORDER = {
 
 def run_pending_jobs(db: Session, *, max_attempts: int = 4) -> dict:
     """Execute all QUEUED/retryable jobs through their connectors."""
+    # Flush first: callers often queue jobs in the same (autoflush-off)
+    # transaction and call straight into here, so the jobs must be written
+    # before we SELECT them or they'd be invisible and left stuck at QUEUED.
+    db.flush()
     jobs = list(
         db.scalars(
             select(ProvisioningJob).where(ProvisioningJob.status.in_(["QUEUED", "FAILED"]))

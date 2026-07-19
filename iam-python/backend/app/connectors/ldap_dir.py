@@ -122,3 +122,37 @@ class LdapConnector(Connector):
         ok = conn.modify(group_dn, {"member": [(ldap3.MODIFY_DELETE, [self._dn(user)])]})
         conn.unbind()
         return ConnectorResult.success("group revoked") if ok else ConnectorResult.failure(str(conn.result))
+
+    def list_accounts(self, since: str | None = None) -> ConnectorResult:
+        conn, err = self._connect()
+        if err:
+            return err
+        # whenChanged incremental filter is AD-specific (generalized-time
+        # comparison); plain LDAP servers fall back to a full pull when the
+        # attribute isn't indexed/supported.
+        filt = "(objectClass=user)"
+        if since:
+            filt = f"(&(objectClass=user)(whenChanged>={since}))"
+        conn.search(
+            self.config.get("base_dn", ""), filt,
+            attributes=["cn", "mail", "sAMAccountName", "userAccountControl", "memberOf", "department", "whenChanged"],
+        )
+        accounts = []
+        latest: str | None = since
+        for entry in conn.entries:
+            uac = int(entry["userAccountControl"].value) if "userAccountControl" in entry else 512
+            member_of = entry["memberOf"].values if "memberOf" in entry else []
+            groups = [dn.split(",")[0].removeprefix("CN=") for dn in member_of]
+            changed = str(entry["whenChanged"].value) if "whenChanged" in entry else None
+            if changed and (latest is None or changed > latest):
+                latest = changed
+            accounts.append({
+                "identifier": str(entry["sAMAccountName"].value) if "sAMAccountName" in entry else str(entry.entry_dn),
+                "email": str(entry["mail"].value) if "mail" in entry else None,
+                "display_name": str(entry["cn"].value) if "cn" in entry else None,
+                "status": "DISABLED" if uac & 2 else "ACTIVE",  # ACCOUNTDISABLE bit
+                "groups": groups,
+                "department": str(entry["department"].value) if "department" in entry else None,
+            })
+        conn.unbind()
+        return ConnectorResult.success("listed", accounts=accounts, cursor=latest)

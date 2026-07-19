@@ -91,3 +91,38 @@ class RestConnector(Connector):
 
     def revoke_group(self, user: UserContext) -> ConnectorResult:
         return self._call("revoke_group", user, "POST")
+
+    def list_accounts(self, since: str | None = None) -> ConnectorResult:
+        paths: dict[str, str] = self.config.get("paths", {})
+        path = paths.get("list_accounts")
+        if not path:
+            return ConnectorResult.failure("no path configured for 'list_accounts'")
+        params = {"since": since} if since else None
+        try:
+            with self._client() as client:
+                resp = client.get(path, params=params)
+        except httpx.HTTPError as exc:
+            return ConnectorResult.failure(f"transport error: {exc}", retryable=True)
+        if resp.status_code >= 500 or resp.status_code == 429:
+            return ConnectorResult.failure(f"HTTP {resp.status_code}", retryable=True)
+        if resp.status_code >= 400:
+            return ConnectorResult.failure(f"HTTP {resp.status_code}")
+        try:
+            body = resp.json()
+        except ValueError:
+            return ConnectorResult.failure("response was not valid JSON")
+        # Accept either a bare list or {"users": [...], "cursor": "..."}.
+        raw_users = body if isinstance(body, list) else body.get("users", [])
+        accounts = [
+            {
+                "identifier": u.get("id") or u.get("identifier") or u.get("email"),
+                "email": u.get("email"),
+                "display_name": u.get("displayName") or u.get("display_name"),
+                "status": "ACTIVE" if u.get("active", True) else "DISABLED",
+                "groups": u.get("groups", []),
+                "department": u.get("department"),
+            }
+            for u in raw_users
+        ]
+        cursor = body.get("cursor") if isinstance(body, dict) else None
+        return ConnectorResult.success("listed", accounts=accounts, cursor=cursor)

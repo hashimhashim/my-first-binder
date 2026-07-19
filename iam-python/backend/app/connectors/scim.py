@@ -95,3 +95,40 @@ class ScimConnector(Connector):
                     json={"Operations": [{"op": "remove", "path": f'members[value eq "{user.email}"]'}]},
                 )
             )
+
+    def list_accounts(self, since: str | None = None) -> ConnectorResult:
+        params = {}
+        if since:
+            # SCIM filter expression for incremental pulls (RFC 7644 §3.4.2.2).
+            params["filter"] = f'meta.lastModified gt "{since}"'
+        try:
+            with self._client() as c:
+                resp = c.get("/Users", params=params)
+        except httpx.HTTPError as exc:
+            return ConnectorResult.failure(f"transport error: {exc}", retryable=True)
+        if resp.status_code >= 500 or resp.status_code == 429:
+            return ConnectorResult.failure(f"HTTP {resp.status_code}", retryable=True)
+        if resp.status_code >= 400:
+            return ConnectorResult.failure(f"HTTP {resp.status_code}")
+        try:
+            body = resp.json()
+        except ValueError:
+            return ConnectorResult.failure("response was not valid JSON")
+        resources = body.get("Resources", [])
+        accounts = []
+        latest_modified: str | None = None
+        for res in resources:
+            emails = res.get("emails", [])
+            email = next((e["value"] for e in emails if e.get("primary")), emails[0]["value"] if emails else None)
+            modified = (res.get("meta") or {}).get("lastModified")
+            if modified and (latest_modified is None or modified > latest_modified):
+                latest_modified = modified
+            accounts.append({
+                "identifier": res.get("id") or res.get("userName"),
+                "email": email or res.get("userName"),
+                "display_name": res.get("displayName"),
+                "status": "ACTIVE" if res.get("active", True) else "DISABLED",
+                "groups": [g.get("display") for g in res.get("groups", []) if g.get("display")],
+                "department": None,
+            })
+        return ConnectorResult.success("listed", accounts=accounts, cursor=latest_modified or since)

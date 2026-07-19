@@ -98,3 +98,21 @@ class Connector(abc.ABC):
 
     def move_ou(self, user: UserContext, target_ou: str) -> ConnectorResult:
         return ConnectorResult.failure("move_ou not supported by this connector")
+
+    # -- directory sync: read the source's current account list ----------------
+    def list_accounts(self, since: str | None = None) -> ConnectorResult:
+        """Pull accounts from the source for the sync engine to diff against
+        the provisioning ledger.
+
+        `since` is an opaque cursor previously returned in a result's
+        `data["cursor"]`; pass None for a full pull. Connectors that cannot
+        express incremental queries may ignore `since` and always do a full
+        pull — the sync engine still benefits from scheduling and diffing.
+
+        On success, `data` MUST contain:
+          accounts: list[dict] — each with keys `identifier` (str), `email`
+            (str | None), `display_name` (str | None), `status` ("ACTIVE" |
+            "DISABLED"), `groups` (list[str]), `department` (str | None)
+          cursor: str | None — opaque watermark for the next incremental call
+        """
+        return ConnectorResult.failure(f"list_accounts not supported by {self.type}")

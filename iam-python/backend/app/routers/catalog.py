@@ -84,7 +84,9 @@ def connector_types(_=Depends(current_user)):
 def list_apps(db: Session = Depends(get_db), _=Depends(current_user)):
     return [
         {"id": a.id, "name": a.name, "connector_type": a.connector_type, "enabled": a.enabled,
-         "health": a.health, "last_health_at": a.last_health_at, "config": a.config}
+         "health": a.health, "last_health_at": a.last_health_at, "config": a.config,
+         "sync_enabled": a.sync_enabled, "sync_interval_minutes": a.sync_interval_minutes,
+         "last_sync_at": a.last_sync_at}
         for a in db.scalars(select(Application).order_by(Application.name))
     ]
 

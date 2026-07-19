@@ -101,6 +101,13 @@ class Application(Base, TimestampMixin):
     # Health: UNKNOWN, HEALTHY, DEGRADED, DOWN
     health: Mapped[str] = mapped_column(String, default="UNKNOWN")
     last_health_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Directory sync (see services/sync_engine.py)
+    sync_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    sync_interval_minutes: Mapped[int] = mapped_column(Integer, default=15)
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Opaque incremental watermark returned by the connector (e.g. a
+    # timestamp or change-log token); cleared to force the next run to be FULL.
+    last_sync_cursor: Mapped[str | None] = mapped_column(String)
 
 
 class RoleEntitlement(Base):
@@ -207,6 +214,33 @@ class ProvisioningJob(Base, TimestampMixin):
     last_error: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict] = mapped_column(JSON, default=dict)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SyncRun(Base):
+    """One execution of the directory sync engine against one application.
+
+    Findings themselves (which account, what drifted) are written to
+    AuditEvent — this row is the run-level summary the dashboard reads.
+    """
+
+    __tablename__ = "sync_runs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    application_id: Mapped[str] = mapped_column(ForeignKey("applications.id"), nullable=False)
+    sync_type: Mapped[str] = mapped_column(String, nullable=False)  # FULL, INCREMENTAL
+    trigger: Mapped[str] = mapped_column(String, default="MANUAL")  # MANUAL, SCHEDULED
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # RUNNING, COMPLETED, FAILED
+    status: Mapped[str] = mapped_column(String, default="RUNNING")
+    accounts_scanned: Mapped[int] = mapped_column(Integer, default=0)
+    untracked_count: Mapped[int] = mapped_column(Integer, default=0)
+    missing_count: Mapped[int] = mapped_column(Integer, default=0)
+    status_drift_count: Mapped[int] = mapped_column(Integer, default=0)
+    group_drift_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+
+    application: Mapped[Application] = relationship()
 
 
 class AuditEvent(Base):

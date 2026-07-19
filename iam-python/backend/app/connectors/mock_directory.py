@@ -101,3 +101,19 @@ class MockDirectoryConnector(Connector):
         if rec is not None:
             rec["ou"] = target_ou
         return ConnectorResult.success("moved OU", ou=target_ou)
+
+    def list_accounts(self, since: str | None = None) -> ConnectorResult:
+        # The mock has no real change log, so every pull is a full pull —
+        # fine for a simulated tenant; real connectors below honour `since`.
+        accounts = [
+            {
+                "identifier": rec["identifier"],
+                "email": rec.get("email"),
+                "display_name": rec.get("display_name"),
+                "status": rec.get("status", "ACTIVE"),
+                "groups": list(rec.get("groups", [])),
+                "department": rec.get("department"),
+            }
+            for rec in _DIRECTORY.values()
+        ]
+        return ConnectorResult.success("listed", accounts=accounts, cursor=None)

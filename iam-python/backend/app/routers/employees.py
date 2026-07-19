@@ -102,6 +102,14 @@ def leaver(employee_id: str, admin=Depends(require_admin), db: Session = Depends
     return result
 
 
+@router.post("/{employee_id}/rehire")
+def rehire(employee_id: str, admin=Depends(require_admin), db: Session = Depends(get_db)):
+    emp = _must_get(db, employee_id)
+    result = lifecycle.process_rehire(db, emp, actor_id=admin.id)
+    provisioning.run_pending_jobs(db)
+    return result
+
+
 def _must_get(db: Session, employee_id: str) -> Employee:
     emp = db.get(Employee, employee_id)
     if emp is None:

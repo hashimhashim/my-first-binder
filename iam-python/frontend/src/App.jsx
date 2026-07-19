@@ -185,6 +185,7 @@ function Employees({flash, user, reloadCounts}) {
               <button className="action sec" disabled={e.status !== "PRE_HIRE"} onClick={() => act(e.id, "joiner")}>Joiner</button>
               <button className="action sec" onClick={() => act(e.id, "mover", {department: prompt("New department?", e.department || "")})}>Mover</button>
               <button className="action danger" disabled={e.status === "TERMINATED"} onClick={() => act(e.id, "leaver")}>Leaver</button>
+              <button className="action sec" disabled={e.status !== "TERMINATED"} onClick={() => act(e.id, "rehire")}>Rehire</button>
             </div></td>}
           </tr>
         ))}</tbody>

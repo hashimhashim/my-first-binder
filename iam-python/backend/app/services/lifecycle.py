@@ -181,9 +181,12 @@ def process_leaver(db: Session, employee: Employee, *, actor_id: str | None = No
     )
     for account in accounts:
         app = db.get(Application, account.application_id)
+        # Unique suffix so an account can be disabled again after a rehire
+        # re-enabled it (a static key would collide with the prior COMPLETED
+        # disable and silently no-op the second termination).
         provisioning.queue_job(
             db, operation="DISABLE_USER", application=app, employee=employee,
-            app_account=account, idempotency_key=f"DISABLE_USER:{account.id}",
+            app_account=account, idempotency_key=f"DISABLE_USER:{account.id}:{uuid.uuid4().hex[:8]}",
         )
     db.add(LifecycleEvent(employee_id=employee.id, event_type="LEAVER",
                           result={"roles_revoked": role_ids, "accounts_disabled": len(accounts)}))
@@ -191,6 +194,41 @@ def process_leaver(db: Session, employee: Employee, *, actor_id: str | None = No
                  actor_id=actor_id, detail={"accounts_disabled": len(accounts)})
     db.commit()
     return {"accounts_disabled": len(accounts), "roles_revoked": len(role_ids)}
+
+
+def process_rehire(db: Session, employee: Employee, *, actor_id: str | None = None) -> dict:
+    """Bring a terminated employee back: reactivate, re-enable their disabled
+    accounts through the connector, and restore birthright roles. The mirror
+    image of process_leaver."""
+    if employee.status != "TERMINATED":
+        # Only a terminated identity can be rehired; otherwise it's a no-op.
+        return {"status": employee.status, "accounts_reenabled": 0, "birthright_roles": []}
+    employee.status = "ACTIVE"
+    employee.end_date = None
+    # Re-enable every disabled app account via connector jobs.
+    accounts = list(
+        db.scalars(
+            select(AppAccount).where(
+                AppAccount.employee_id == employee.id,
+                AppAccount.status == "DISABLED",
+            )
+        )
+    )
+    for account in accounts:
+        app = db.get(Application, account.application_id)
+        provisioning.queue_job(
+            db, operation="ENABLE_USER", application=app, employee=employee,
+            app_account=account, idempotency_key=f"ENABLE_USER:{account.id}:{uuid.uuid4().hex[:8]}",
+        )
+    # Restore birthright roles (re-assigns role rows; group jobs are idempotent).
+    granted = _apply_birthright(db, employee, actor_id=actor_id)
+    db.add(LifecycleEvent(employee_id=employee.id, event_type="REHIRE",
+                          result={"accounts_reenabled": len(accounts), "birthright_roles": granted}))
+    audit.record(db, action="lifecycle.rehire", entity_type="employee", entity_id=employee.id,
+                 actor_id=actor_id, detail={"accounts_reenabled": len(accounts), "roles": granted})
+    db.commit()
+    return {"status": employee.status, "accounts_reenabled": len(accounts),
+            "birthright_roles": granted}
 
 
 # --------------------------------------------------------------------------- helpers

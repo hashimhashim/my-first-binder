@@ -14,6 +14,7 @@ from .ldap_dir import LdapConnector
 from .mock_directory import MockDirectoryConnector
 from .rest import RestConnector
 from .scim import ScimConnector
+from .vantage_grc import VantageGrcConnector
 
 _REGISTRY: dict[str, type[Connector]] = {}
 
@@ -23,7 +24,7 @@ def register(cls: type[Connector]) -> type[Connector]:
     return cls
 
 
-for _cls in (AegisSiemConnector, MockDirectoryConnector, RestConnector, ScimConnector, LdapConnector):
+for _cls in (AegisSiemConnector, VantageGrcConnector, MockDirectoryConnector, RestConnector, ScimConnector, LdapConnector):
     register(_cls)
 
 

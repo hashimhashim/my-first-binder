@@ -56,6 +56,27 @@ The connector points at a real Aegis SIEM by setting `config.base_url` +
 `credentials.token`; override `config.paths` if the real API differs from the
 documented default contract (see `connectors/aegis_siem.py`).
 
+## Phase A.1 — Prove reuse with a second, differently-shaped connector  ·  ✅ DONE
+
+Added **Vantage GRC** as a second managed application, deliberately shaped
+nothing like the SIEM (PUT-upsert instead of POST-then-409, a status string
+instead of a boolean, "entitlements" instead of "roles", API-key auth instead
+of a bearer token) to prove the framework generalizes rather than being fit
+to one API shape.
+
+| Feature | Status |
+|---|---|
+| `VANTAGE_GRC` connector (upsert create/update, status-based enable/disable, config-gated delete, grant/revoke entitlement, sync list, provisioning verification) | ✅ Done |
+| Hire in IAM (Compliance dept) → identity created in GRC with mapped entitlement | ✅ Verified end to end |
+| Terminate in IAM → identity disabled in GRC | ✅ Verified end to end |
+| Rehire in IAM → identity re-enabled in GRC, entitlement restored | ✅ Verified end to end |
+| Automated tests (connector) | ✅ 9 passing |
+| `docker compose up` starts IAM + Aegis SIEM + Vantage GRC together | ✅ |
+
+The connector points at a real Vantage GRC (or any GRC exposing this shape)
+by setting `config.base_url` + `credentials.api_key`; override `config.paths`
+if the real API differs (see `connectors/vantage_grc.py`).
+
 ## Phase A — Microsoft Identity Foundation  ·  ~4 weeks
 
 The base every later Microsoft phase depends on. With the framework now proven

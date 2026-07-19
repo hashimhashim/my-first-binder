@@ -76,6 +76,11 @@ def seed_if_empty() -> None:
         # birthright rule auto-provisions any SOC hire into the SIEM — so
         # hiring in IAM immediately shows up in the SIEM viewer.
         _seed_siem(db, admin)
+        # Vantage GRC as a second managed application, proving the same
+        # framework drives a differently-shaped downstream system. Ships
+        # with a Compliance Analyst role whose birthright rule auto-
+        # provisions any Compliance hire into the GRC tool.
+        _seed_grc(db, admin)
 
         print("seeded demo world")
     finally:
@@ -103,4 +108,28 @@ def _seed_siem(db, admin) -> None:
     db.add(soc)
     db.flush()
     db.add(RoleEntitlement(role_id=soc.id, application_id=siem.id, group_name="SOC-Analyst"))
+    db.commit()
+
+
+def _seed_grc(db, admin) -> None:
+    import os
+
+    grc_url = os.environ.get("IAM_GRC_URL")
+    if not grc_url:
+        return
+    from .security import encrypt_credentials
+
+    grc = Application(
+        name="Vantage GRC", connector_type="VANTAGE_GRC",
+        config={"base_url": grc_url, "verify_provisioning": True, "delete_enabled": False},
+        credentials_enc=encrypt_credentials({"api_key": os.environ.get("IAM_GRC_API_KEY", "demo-grc-key")}),
+        health="UNKNOWN", sync_enabled=True, sync_interval_minutes=5,
+    )
+    db.add(grc)
+    db.flush()
+    compliance = BusinessRole(code="COMPLIANCE_ANALYST", name="Compliance Analyst", requires_approval=False,
+                              auto_assign_filter={"department": "Compliance"})
+    db.add(compliance)
+    db.flush()
+    db.add(RoleEntitlement(role_id=compliance.id, application_id=grc.id, group_name="Compliance-Analyst"))
     db.commit()

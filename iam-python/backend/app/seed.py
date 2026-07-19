@@ -70,6 +70,37 @@ def seed_if_empty() -> None:
         db.flush()
         db.add(Approval(request_id=req.id, stage_order=1, stage_type="MANAGER", approver_id=mona.id))
         db.commit()
+
+        # Aegis SIEM as a managed application (when a SIEM URL is configured,
+        # e.g. in docker-compose). Ships with a SOC Analyst role whose
+        # birthright rule auto-provisions any SOC hire into the SIEM — so
+        # hiring in IAM immediately shows up in the SIEM viewer.
+        _seed_siem(db, admin)
+
         print("seeded demo world")
     finally:
         db.close()
+
+
+def _seed_siem(db, admin) -> None:
+    import os
+
+    siem_url = os.environ.get("IAM_SIEM_URL")
+    if not siem_url:
+        return
+    from .security import encrypt_credentials
+
+    siem = Application(
+        name="Aegis SIEM", connector_type="AEGIS_SIEM",
+        config={"base_url": siem_url, "verify_provisioning": True, "delete_enabled": False},
+        credentials_enc=encrypt_credentials({"token": os.environ.get("IAM_SIEM_TOKEN", "demo-siem-token")}),
+        health="UNKNOWN", sync_enabled=True, sync_interval_minutes=5,
+    )
+    db.add(siem)
+    db.flush()
+    soc = BusinessRole(code="SOC_ANALYST", name="SOC Analyst", requires_approval=False,
+                       auto_assign_filter={"department": "SOC"})
+    db.add(soc)
+    db.flush()
+    db.add(RoleEntitlement(role_id=soc.id, application_id=siem.id, group_name="SOC-Analyst"))
+    db.commit()

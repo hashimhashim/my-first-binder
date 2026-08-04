@@ -1,3 +1,7 @@
 node_modules/
 out/
 .cache/
+__pycache__/
+*.pyc
+vm-converter/dist/
+vm-converter/build/

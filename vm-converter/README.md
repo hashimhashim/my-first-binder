@@ -1,11 +1,43 @@
 # Image → VM Disk Converter
 
-A small app that turns a disk/backup image into a bootable VM disk — VMware
-(`.vmdk`), Hyper-V (`.vhdx`/`.vhd`), VirtualBox (`.vdi`), or KVM/Proxmox
-(`.qcow2`). It wraps `qemu-img` with sane defaults, pre-flight checks, a
-progress bar, and a one-window GUI.
+Turns a disk/backup image into a bootable VM disk — VMware (`.vmdk`), Hyper-V
+(`.vhd`/`.vhdx`), VirtualBox (`.vdi`), or KVM/Proxmox (`.qcow2`).
 
-## Easiest way to use it
+Two ways to run it:
+
+- **`web/vm-converter.html`** — open it in a browser. No install, nothing
+  uploaded, converts on your own machine.
+- **Desktop app** — a Python GUI + CLI that drives `qemu-img`, covering every
+  format including `.qcow2`, `.vhdx`, and `.vdi`.
+
+## Easiest way: the web page (no install at all)
+
+Open **`web/vm-converter.html`** — double-click it, or drag it into Chrome or
+Edge. Drop in your image, pick the hypervisor, hit Convert. The conversion runs
+inside the tab: nothing is uploaded anywhere, and it works with no internet
+connection. Save the file and it keeps working forever.
+
+It converts `.vhd` (fixed and dynamic), `.vmdk` (sparse), and `.img`/`.raw`
+into:
+
+| Output | Notes |
+|---|---|
+| `.vmdk` sparse | VMware Workstation / Fusion / ESXi |
+| `.vhd` dynamic | Hyper-V, VirtualBox — file grows as needed |
+| `.vhd` fixed | Azure requires this one |
+| `.img` raw | anything |
+
+Empty space is skipped, so the output stays small. `.qcow2`, `.vhdx`, and `.vdi`
+can't be produced by a browser tab — pick one and the page hands you the exact
+`qemu-img` command to run instead, with a copy button.
+
+Use Chrome or Edge if the disk is large: they stream the output straight to
+disk, while Safari and Firefox must hold it in memory (the page warns you and
+stops rather than crashing the tab).
+
+The output is verified against `qemu-img`, byte for byte, by the tests below.
+
+## Desktop version
 
 1. Install Python from https://www.python.org/downloads/ — on Windows, tick
    **"Add python.exe to PATH"** in the installer.
@@ -30,7 +62,7 @@ That produces `dist/Image to VM Converter.exe` (Windows), `.app` (macOS), or a
 single binary (Linux). Build it on the OS you want it for — PyInstaller doesn't
 cross-compile. `qemu-img` is still needed on whatever machine runs it.
 
-## Requirements
+## Requirements (desktop version only)
 
 - Python 3.10+
 - `qemu-img` on PATH
@@ -99,5 +131,17 @@ MBR disks, UEFI for GPT.
 ## Tests
 
 ```bash
-cd vm-converter && python3 -m unittest discover -s tests
+cd vm-converter
+
+# desktop app
+python3 -m unittest discover -s tests
+
+# web app: converts test disks and byte-compares the output with qemu-img
+node tests/test_web_core.mjs
+
+# web app: drives the real page in a browser (needs `npm install playwright`)
+node tests/test_web_e2e.mjs
 ```
+
+The web tests need `qemu-img` installed — not because the page uses it, but
+because it's the reference implementation the output is checked against.

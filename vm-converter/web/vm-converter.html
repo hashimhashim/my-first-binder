@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image → VM Disk Converter</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #14161a;
+    --muted: #5d6470;
+    --line: #dfe3e8;
+    --accent: #2f6df6;
+    --accent-ink: #ffffff;
+    --warn-bg: #fff5e6;
+    --warn-ink: #7a4b00;
+    --err-bg: #fdecec;
+    --err-ink: #93231f;
+    --ok-bg: #eaf7ee;
+    --ok-ink: #1c6b34;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --card: #1c1f25; --ink: #e9ecf1; --muted: #9aa3b1;
+      --line: #2c313a; --accent: #5b8dff; --accent-ink: #0d1015;
+      --warn-bg: #33280f; --warn-ink: #f0cf92;
+      --err-bg: #3a1f1e; --err-ink: #f3b0ac;
+      --ok-bg: #17301f; --ok-ink: #9fdcb2;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 64px;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px; margin-bottom: 16px;
+  }
+  label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 10px; padding: 26px 16px;
+    text-align: center; color: var(--muted); cursor: pointer; transition: .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); color: var(--ink); }
+  .drop strong { color: var(--ink); }
+  select, button, input[type=text] {
+    font: inherit; padding: 9px 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  select { width: 100%; }
+  button.primary {
+    background: var(--accent); color: var(--accent-ink); border-color: transparent;
+    font-weight: 600; padding: 11px 22px; cursor: pointer;
+  }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { cursor: pointer; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1 1 220px; min-width: 0; }
+  .facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin-top: 12px; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+  progress { width: 100%; height: 12px; }
+  .note { border-radius: 8px; padding: 12px 14px; margin-top: 14px; font-size: 14px; white-space: pre-wrap; }
+  .note.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .note.err  { background: var(--err-bg);  color: var(--err-ink); }
+  .note.ok   { background: var(--ok-bg);   color: var(--ok-ink); }
+  pre.cmd {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; margin: 10px 0 0;
+  }
+  .hidden { display: none !important; }
+  footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 8px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Image → VM Disk Converter</h1>
+  <p class="sub">Converts a disk image into a VM disk. Nothing is uploaded — the conversion runs inside this browser tab.</p>
+
+  <div class="card">
+    <label>1. Choose the disk image</label>
+    <div class="drop" id="drop">
+      <strong>Click to choose a file</strong> or drag one here<br>
+      <span style="font-size:13px">.vhd &nbsp;·&nbsp; .vmdk &nbsp;·&nbsp; .img / .raw</span>
+    </div>
+    <input type="file" id="file" class="hidden">
+    <dl class="facts hidden" id="facts">
+      <dt>File</dt><dd id="f-name"></dd>
+      <dt>Format</dt><dd id="f-fmt"></dd>
+      <dt>Virtual size</dt><dd id="f-size"></dd>
+    </dl>
+    <div class="note err hidden" id="src-err"></div>
+  </div>
+
+  <div class="card">
+    <label for="target">2. Choose what you want to run it in</label>
+    <select id="target">
+      <option value="vmdk">VMware — .vmdk (sparse)</option>
+      <option value="vhd-dynamic">Hyper-V / VirtualBox — .vhd (dynamic, grows as needed)</option>
+      <option value="vhd-fixed">Azure / Hyper-V — .vhd (fixed size)</option>
+      <option value="raw">Raw disk — .img</option>
+      <option value="qcow2">KVM / Proxmox — .qcow2 &nbsp;(needs qemu-img)</option>
+      <option value="vhdx">Hyper-V modern — .vhdx &nbsp;(needs qemu-img)</option>
+      <option value="vdi">VirtualBox native — .vdi &nbsp;(needs qemu-img)</option>
+    </select>
+    <div class="note warn hidden" id="tool-note"></div>
+    <pre class="cmd hidden" id="cmd"></pre>
+    <button class="ghost hidden" id="copy">Copy command</button>
+  </div>
+
+  <div class="card">
+    <label>3. Convert</label>
+    <div class="row">
+      <button class="primary" id="go" disabled>Convert</button>
+      <button class="ghost hidden" id="cancel">Cancel</button>
+      <span class="grow" id="status" style="color:var(--muted)">Choose a file to begin.</span>
+    </div>
+    <progress id="bar" class="hidden" max="100" value="0"></progress>
+    <div class="note ok hidden" id="done"></div>
+    <div class="note err hidden" id="err"></div>
+  </div>
+
+  <footer>Works offline — save this page and open it any time. Best in Chrome or Edge, which write the
+  output straight to disk so image size is not limited by memory.</footer>
+</div>
+
+<script>
+/* CORE-START — pure conversion logic; also loaded directly by tests/test_web_core.mjs */
+const SECTOR = 512;
+const VHD_BLOCK = 2 * 1024 * 1024;      // dynamic VHD block
+const VMDK_GRAIN_SECTORS = 128;         // 64 KiB grains
+const VMDK_GTES_PER_GT = 512;
+const COPY_CHUNK = 4 * 1024 * 1024;
+
+const TOOL_ONLY = {
+  qcow2: { ext: ".qcow2", flag: "qcow2" },
+  vhdx:  { ext: ".vhdx",  flag: "vhdx"  },
+  vdi:   { ext: ".vdi",   flag: "vdi"   },
+};
+
+const IN_BROWSER = {
+  "vmdk":        { ext: ".vmdk", label: "VMware sparse VMDK" },
+  "vhd-dynamic": { ext: ".vhd",  label: "dynamic VHD" },
+  "vhd-fixed":   { ext: ".vhd",  label: "fixed VHD" },
+  "raw":         { ext: ".img",  label: "raw image" },
+};
+
+const PROPRIETARY = {
+  tib: "Acronis .tib/.tibx backups are proprietary — no converter can read them directly.\n" +
+       "In Acronis: Tools & Utilities → Mount Image, then export the mounted disk to .vhd.\n" +
+       "Bring that .vhd back here.\n" +
+       "If Acronis says the archive is corrupted, it cannot be converted whole — mount it\n" +
+       "read-only and copy off the intact data first.",
+  tibx: null,
+  mrimg: "Macrium Reflect .mrimg images must be mounted or restored by Macrium first, then " +
+         "converted from the resulting .vhd.",
+  spf: "ShadowProtect .spf/.spi images must be mounted by ShadowProtect first.",
+  v2i: "Symantec/Veritas .v2i images must be mounted by System Recovery first.",
+};
+PROPRIETARY.tibx = PROPRIETARY.tib;
+
+class UnsupportedImage extends Error {}
+
+const te = new TextEncoder();
+const align = (n, to) => Math.ceil(n / to) * to;
+const isZero = (buf) => { for (let i = 0; i < buf.length; i++) if (buf[i] !== 0) return false; return true; };
+
+function humanSize(n) {
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return i === 0 ? `${n} B` : `${n.toFixed(1)} ${units[i]}`;
+}
+
+function randomBytes(n) {
+  const b = new Uint8Array(n);
+  globalThis.crypto.getRandomValues(b);
+  return b;
+}
+
+/* ---------- little helpers over DataView ---------- */
+function u64be(view, off, value) {
+  view.setUint32(off, Math.floor(value / 4294967296), false);
+  view.setUint32(off + 4, value >>> 0, false);
+}
+function u64le(view, off, value) {
+  view.setUint32(off, value >>> 0, true);
+  view.setUint32(off + 4, Math.floor(value / 4294967296), true);
+}
+function readU64be(view, off) {
+  return view.getUint32(off, false) * 4294967296 + view.getUint32(off + 4, false);
+}
+function readU64le(view, off) {
+  return view.getUint32(off + 4, true) * 4294967296 + view.getUint32(off, true);
+}
+function ascii(bytes, off, len) {
+  let s = "";
+  for (let i = 0; i < len; i++) s += String.fromCharCode(bytes[off + i]);
+  return s;
+}
+
+/* ---------- VHD footer / header ---------- */
+function vhdChecksum(bytes) {
+  let sum = 0;
+  for (let i = 0; i < bytes.length; i++) sum = (sum + bytes[i]) >>> 0;
+  return (~sum) >>> 0;
+}
+
+/**
+ * Geometry per the VHD spec (Appendix: CHS calculation).
+ *
+ * Readers — qemu, Hyper-V — derive the disk size from cylinders*heads*sectors
+ * rather than trusting the size field, so the geometry has to *cover* the image.
+ * Rounding down here would quietly truncate the tail of the disk, so round up
+ * and pad the extra sectors with zeros.
+ */
+function vhdGeometry(totalSectors) {
+  const ts = Math.min(totalSectors, 65535 * 16 * 255);
+  let spt, heads, cth;
+  if (ts >= 65535 * 16 * 63) {
+    spt = 255; heads = 16; cth = Math.ceil(ts / spt);
+  } else {
+    spt = 17;
+    cth = Math.ceil(ts / spt);
+    heads = Math.max(4, Math.floor((cth + 1023) / 1024));
+    if (cth >= heads * 1024 || heads > 16) { spt = 31; heads = 16; cth = Math.ceil(ts / spt); }
+    if (cth >= heads * 1024) { spt = 63; heads = 16; cth = Math.ceil(ts / spt); }
+  }
+  const cylinders = Math.min(Math.ceil(cth / heads), 65535);
+  return { cylinders, heads, sectorsPerTrack: spt };
+}
+
+/** Size the disk must be padded to so CHS geometry describes it exactly. */
+function vhdPaddedSize(virtualSize) {
+  const g = vhdGeometry(Math.ceil(virtualSize / SECTOR));
+  return Math.max(align(virtualSize, SECTOR), g.cylinders * g.heads * g.sectorsPerTrack * SECTOR);
+}
+
+function vhdFooter(virtualSize, diskType, uuid) {
+  const buf = new Uint8Array(512);
+  const v = new DataView(buf.buffer);
+  buf.set(te.encode("conectix"), 0);
+  v.setUint32(8, 0x00000002, false);            // features: reserved bit
+  v.setUint32(12, 0x00010000, false);           // format version 1.0
+  if (diskType === 2) { v.setUint32(16, 0xffffffff, false); v.setUint32(20, 0xffffffff, false); }
+  else u64be(v, 16, 512);                       // dynamic: header follows the footer copy
+  v.setUint32(24, Math.floor(Date.now() / 1000) - 946684800, false);
+  buf.set(te.encode("vmcv"), 28);               // creator app
+  v.setUint32(32, 0x00010000, false);
+  buf.set(te.encode("Wi2k"), 36);               // creator host OS
+  u64be(v, 40, virtualSize);
+  u64be(v, 48, virtualSize);
+  const g = vhdGeometry(Math.floor(virtualSize / SECTOR));
+  v.setUint16(56, Math.min(g.cylinders, 65535), false);
+  buf[58] = g.heads;
+  buf[59] = g.sectorsPerTrack;
+  v.setUint32(60, diskType, false);             // 2 = fixed, 3 = dynamic
+  buf.set(uuid, 68);
+  v.setUint32(64, vhdChecksum(buf), false);
+  return buf;
+}
+
+function vhdDynamicHeader(maxTableEntries) {
+  const buf = new Uint8Array(1024);
+  const v = new DataView(buf.buffer);
+  buf.set(te.encode("cxsparse"), 0);
+  v.setUint32(8, 0xffffffff, false); v.setUint32(12, 0xffffffff, false);  // no data offset
+  u64be(v, 16, 1536);                           // BAT starts after footer copy + this header
+  v.setUint32(24, 0x00010000, false);
+  v.setUint32(28, maxTableEntries, false);
+  v.setUint32(32, VHD_BLOCK, false);
+  v.setUint32(36, vhdChecksum(buf), false);
+  return buf;
+}
+
+/* ---------- readers: turn a file into (virtualSize, readRange) ---------- */
+async function detectFormat(src) {
+  const head = await src.read(0, Math.min(2048, src.size));
+  if (head.length >= 4 && ascii(head, 0, 4) === "KDMV") return "vmdk";
+  if (head.length >= 8 && ascii(head, 0, 8) === "conectix") return "vhd";
+  if (head.length >= 4 && head[0] === 0x51 && head[1] === 0x46 && head[2] === 0x49) return "qcow2";
+  if (head.length >= 8 && ascii(head, 0, 8) === "vhdxfile") return "vhdx";
+  if (head.length >= 0x48) {
+    const v = new DataView(head.buffer, head.byteOffset);
+    if (v.getUint32(0x40, true) === 0xbeda107f) return "vdi";
+  }
+  if (head.length >= 20 && ascii(head, 0, 20).startsWith("# Disk DescriptorFile")) return "vmdk-descriptor";
+  if (src.size >= 512) {
+    const tail = await src.read(src.size - 512, 512);
+    if (ascii(tail, 0, 8) === "conectix") return "vhd";
+  }
+  return "raw";
+}
+
+async function openRaw(src) {
+  return {
+    format: "raw",
+    virtualSize: src.size,
+    async readRange(offset, length) {
+      const out = new Uint8Array(length);
+      const avail = Math.max(0, Math.min(length, src.size - offset));
+      if (avail > 0) out.set(await src.read(offset, avail), 0);
+      return out;
+    },
+  };
+}
+
+async function openVhd(src) {
+  const footer = await src.read(src.size - 512, 512);
+  if (ascii(footer, 0, 8) !== "conectix") throw new UnsupportedImage("This .vhd has no valid footer — the file may be truncated or still being written.");
+  const fv = new DataView(footer.buffer, footer.byteOffset);
+  const virtualSize = readU64be(fv, 48);
+  const diskType = fv.getUint32(60, false);
+
+  if (diskType === 2) {
+    return {
+      format: "vhd (fixed)", virtualSize,
+      async readRange(offset, length) {
+        const out = new Uint8Array(length);
+        const avail = Math.max(0, Math.min(length, virtualSize - offset));
+        if (avail > 0) out.set(await src.read(offset, avail), 0);
+        return out;
+      },
+    };
+  }
+  if (diskType !== 3) {
+    throw new UnsupportedImage(
+      diskType === 4
+        ? "This is a differencing VHD — it only holds changes and needs its parent disk. Merge it first (qemu-img or Hyper-V)."
+        : `Unsupported VHD disk type ${diskType}.`);
+  }
+
+  const dyn = await src.read(readU64be(fv, 16), 1024);
+  if (ascii(dyn, 0, 8) !== "cxsparse") throw new UnsupportedImage("Dynamic VHD header is missing or damaged.");
+  const dv = new DataView(dyn.buffer, dyn.byteOffset);
+  const tableOffset = readU64be(dv, 16);
+  const maxEntries = dv.getUint32(28, false);
+  const blockSize = dv.getUint32(32, false);
+  const bitmapBytes = align(blockSize / SECTOR / 8, SECTOR);
+  const batRaw = await src.read(tableOffset, maxEntries * 4);
+  const bat = new DataView(batRaw.buffer, batRaw.byteOffset);
+
+  return {
+    format: "vhd (dynamic)", virtualSize,
+    async readRange(offset, length) {
+      const out = new Uint8Array(length);
+      let done = 0;
+      while (done < length) {
+        const pos = offset + done;
+        const block = Math.floor(pos / blockSize);
+        const inBlock = pos % blockSize;
+        const take = Math.min(length - done, blockSize - inBlock, Math.max(0, virtualSize - pos));
+        if (take <= 0) break;
+        const entry = block < maxEntries ? bat.getUint32(block * 4, false) : 0xffffffff;
+        if (entry !== 0xffffffff) {                       // unallocated blocks read as zeros
+          out.set(await src.read(entry * SECTOR + bitmapBytes + inBlock, take), done);
+        }
+        done += take;
+      }
+      return out;
+    },
+  };
+}
+
+async function openVmdk(src) {
+  const head = await src.read(0, 512);
+  const hv = new DataView(head.buffer, head.byteOffset);
+  const flags = hv.getUint32(8, true);
+  if (flags & 0x10000) throw new UnsupportedImage("This VMDK is compressed (streamOptimized, usually from an OVA). Extract it with qemu-img first.");
+  const capacity = readU64le(hv, 12);               // sectors
+  const grainSectors = readU64le(hv, 20);
+  const gtes = hv.getUint32(44, true);
+  const gdOffset = readU64le(hv, 56);
+  if (gdOffset === 0 || !Number.isFinite(gdOffset)) throw new UnsupportedImage("This VMDK has no grain directory — it may be a footer-based or split image.");
+  const virtualSize = capacity * SECTOR;
+  const grainBytes = grainSectors * SECTOR;
+  const gtCoverage = gtes * grainSectors;            // sectors covered by one grain table
+  const numGde = Math.ceil(capacity / gtCoverage);
+  const gdRaw = await src.read(gdOffset * SECTOR, numGde * 4);
+  const gd = new DataView(gdRaw.buffer, gdRaw.byteOffset);
+
+  const gtCache = new Map();
+  async function grainOffset(grainIndex) {
+    const gdeIndex = Math.floor(grainIndex / gtes);
+    let gt = gtCache.get(gdeIndex);
+    if (!gt) {
+      const gtSector = gdeIndex < numGde ? gd.getUint32(gdeIndex * 4, true) : 0;
+      if (!gtSector) return 0;
+      const raw = await src.read(gtSector * SECTOR, gtes * 4);
+      gt = new DataView(raw.buffer, raw.byteOffset);
+      gtCache.set(gdeIndex, gt);
+    }
+    return gt.getUint32((grainIndex % gtes) * 4, true);
+  }
+
+  return {
+    format: "vmdk (sparse)", virtualSize,
+    async readRange(offset, length) {
+      const out = new Uint8Array(length);
+      let done = 0;
+      while (done < length) {
+        const pos = offset + done;
+        const grain = Math.floor(pos / grainBytes);
+        const inGrain = pos % grainBytes;
+        const take = Math.min(length - done, grainBytes - inGrain, Math.max(0, virtualSize - pos));
+        if (take <= 0) break;
+        const sector = await grainOffset(grain);
+        if (sector) out.set(await src.read(sector * SECTOR + inGrain, take), done);
+        done += take;
+      }
+      return out;
+    },
+  };
+}
+
+async function openImage(src, filename = "") {
+  const ext = (filename.split(".").pop() || "").toLowerCase();
+  if (PROPRIETARY[ext]) throw new UnsupportedImage(PROPRIETARY[ext]);
+  const fmt = await detectFormat(src);
+  switch (fmt) {
+    case "vhd": return openVhd(src);
+    case "vmdk": return openVmdk(src);
+    case "raw": return openRaw(src);
+    case "vmdk-descriptor":
+      throw new UnsupportedImage("This is a VMDK descriptor file that points at separate data files (-flat/-s00x). Convert it with qemu-img instead.");
+    default:
+      throw new UnsupportedImage(`${fmt.toUpperCase()} input is not supported in the browser — use qemu-img for this one.`);
+  }
+}
+
+/* ---------- writers ---------- */
+async function writeZeros(out, bytes) {
+  const chunk = new Uint8Array(Math.min(bytes, COPY_CHUNK));
+  let left = bytes;
+  while (left > 0) {
+    const n = Math.min(left, chunk.length);
+    await out.write(n === chunk.length ? chunk : chunk.subarray(0, n));
+    left -= n;
+  }
+}
+
+function progressReporter(total, onProgress) {
+  let seen = 0, lastPct = -1;
+  return (n) => {
+    seen += n;
+    const pct = Math.min(100, (seen / total) * 100);
+    if (onProgress && pct - lastPct >= 0.5) { lastPct = pct; onProgress(pct); }
+  };
+}
+
+function checkCancel(token) {
+  if (token && token.cancelled) throw new Error("Cancelled");
+}
+
+/** Which units (blocks/grains) actually hold data. Zero regions stay unallocated. */
+async function scanAllocation(image, unitBytes, token, onProgress) {
+  const units = Math.ceil(image.virtualSize / unitBytes);
+  const allocated = new Uint8Array(units);
+  const tick = progressReporter(image.virtualSize, onProgress);
+  for (let i = 0; i < units; i++) {
+    checkCancel(token);
+    const offset = i * unitBytes;
+    const len = Math.min(unitBytes, image.virtualSize - offset);
+    const data = await image.readRange(offset, len);
+    allocated[i] = isZero(data) ? 0 : 1;
+    tick(len);
+  }
+  return allocated;
+}
+
+async function copyRange(image, out, offset, length, token, tick) {
+  let done = 0;
+  while (done < length) {
+    checkCancel(token);
+    const n = Math.min(COPY_CHUNK, length - done);
+    await out.write(await image.readRange(offset + done, n));
+    done += n;
+    if (tick) tick(n);
+  }
+}
+
+async function writeRaw(image, out, token, onProgress) {
+  await copyRange(image, out, 0, image.virtualSize, token, progressReporter(image.virtualSize, onProgress));
+}
+
+async function writeVhdFixed(image, out, token, onProgress) {
+  const size = vhdPaddedSize(image.virtualSize);
+  await copyRange(image, out, 0, image.virtualSize, token, progressReporter(size, onProgress));
+  if (size > image.virtualSize) await writeZeros(out, size - image.virtualSize);
+  await out.write(vhdFooter(size, 2, randomBytes(16)));
+}
+
+async function writeVhdDynamic(image, out, token, onProgress) {
+  const size = vhdPaddedSize(image.virtualSize);
+  const numBlocks = Math.ceil(size / VHD_BLOCK);
+  const allocated = await scanAllocation(image, VHD_BLOCK, token, (p) => onProgress && onProgress(p * 0.35));
+
+  const bitmapBytes = align(VHD_BLOCK / SECTOR / 8, SECTOR);
+  const batBytes = align(numBlocks * 4, SECTOR);
+  const dataStart = 512 + 1024 + batBytes;
+  const uuid = randomBytes(16);
+  const footer = vhdFooter(size, 3, uuid);
+
+  const bat = new Uint8Array(batBytes).fill(0xff);
+  const bv = new DataView(bat.buffer);
+  let cursor = dataStart;
+  for (let i = 0; i < numBlocks; i++) {
+    if (allocated[i]) {
+      bv.setUint32(i * 4, cursor / SECTOR, false);
+      cursor += bitmapBytes + VHD_BLOCK;
+    }
+  }
+
+  await out.write(footer);                       // footer copy at the head
+  await out.write(vhdDynamicHeader(numBlocks));
+  await out.write(bat);
+
+  const bitmap = new Uint8Array(bitmapBytes).fill(0xff);   // every sector present
+  const tick = progressReporter(size, (p) => onProgress && onProgress(35 + p * 0.65));
+  for (let i = 0; i < numBlocks; i++) {
+    checkCancel(token);
+    const offset = i * VHD_BLOCK;
+    const len = Math.min(VHD_BLOCK, size - offset);
+    if (!allocated[i]) { tick(len); continue; }
+    await out.write(bitmap);
+    await copyRange(image, out, offset, Math.min(len, image.virtualSize - offset), token, tick);
+    if (len < VHD_BLOCK || offset + len > image.virtualSize) {
+      const written = Math.min(len, Math.max(0, image.virtualSize - offset));
+      await writeZeros(out, VHD_BLOCK - written);           // blocks are always full-size on disk
+    }
+  }
+  await out.write(footer);
+}
+
+async function writeVmdkSparse(image, out, token, onProgress, name = "disk.vmdk") {
+  const capacity = align(Math.ceil(image.virtualSize / SECTOR), VMDK_GRAIN_SECTORS);  // sectors
+  const grainBytes = VMDK_GRAIN_SECTORS * SECTOR;
+  const numGrains = capacity / VMDK_GRAIN_SECTORS;
+  const numGde = Math.ceil(numGrains / VMDK_GTES_PER_GT);
+  const gdSectors = align(numGde * 4, SECTOR) / SECTOR;
+  const gtSectors = numGde * (VMDK_GTES_PER_GT * 4 / SECTOR);   // 4 sectors per grain table
+
+  const descriptorSectors = 20;
+  const rgdOffset = 1 + descriptorSectors;                      // header + descriptor
+  const rgtOffset = rgdOffset + gdSectors;
+  const gdOffset = rgtOffset + gtSectors;
+  const gtOffset = gdOffset + gdSectors;
+  const overhead = align(gtOffset + gtSectors, VMDK_GRAIN_SECTORS);
+
+  const allocated = await scanAllocation(image, grainBytes, token, (p) => onProgress && onProgress(p * 0.35));
+
+  const header = new Uint8Array(512);
+  const hv = new DataView(header.buffer);
+  header.set(te.encode("KDMV"), 0);
+  hv.setUint32(4, 1, true);                 // version
+  hv.setUint32(8, 3, true);                 // valid newline detection + redundant grain table
+  u64le(hv, 12, capacity);
+  u64le(hv, 20, VMDK_GRAIN_SECTORS);
+  u64le(hv, 28, 1);                         // descriptorOffset
+  u64le(hv, 36, descriptorSectors);
+  hv.setUint32(44, VMDK_GTES_PER_GT, true);
+  u64le(hv, 48, rgdOffset);
+  u64le(hv, 56, gdOffset);
+  u64le(hv, 64, overhead);
+  header[72] = 0;                           // clean shutdown
+  header[73] = 0x0a; header[74] = 0x20; header[75] = 0x0d; header[76] = 0x0a;
+  await out.write(header);
+
+  const cid = Array.from(randomBytes(4)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const g = vhdGeometry(capacity);
+  const descriptor =
+    "# Disk DescriptorFile\nversion=1\nencoding=\"UTF-8\"\n" +
+    `CID=${cid}\nparentCID=ffffffff\ncreateType="monolithicSparse"\n\n` +
+    "# Extent description\n" +
+    `RW ${capacity} SPARSE "${name}"\n\n` +
+    "# The Disk Data Base\n#DDB\n\nddb.adapterType = \"lsilogic\"\n" +
+    `ddb.geometry.cylinders = "${Math.min(g.cylinders, 65535)}"\n` +
+    `ddb.geometry.heads = "${g.heads}"\nddb.geometry.sectors = "${g.sectorsPerTrack}"\n` +
+    "ddb.virtualHWVersion = \"14\"\n";
+  const descBuf = new Uint8Array(descriptorSectors * SECTOR);
+  descBuf.set(te.encode(descriptor).subarray(0, descBuf.length));
+  await out.write(descBuf);
+
+  // Grain tables: sector offset of each allocated grain, 0 = reads as zeros.
+  const gtBuf = new Uint8Array(gtSectors * SECTOR);
+  const gtv = new DataView(gtBuf.buffer);
+  let grainCursor = overhead;
+  for (let i = 0; i < numGrains; i++) {
+    if (allocated[i]) { gtv.setUint32(i * 4, grainCursor, true); grainCursor += VMDK_GRAIN_SECTORS; }
+  }
+  const gdBuf = new Uint8Array(gdSectors * SECTOR);
+  const gdv = new DataView(gdBuf.buffer);
+
+  const writeDirectory = async (firstGtSector) => {
+    for (let i = 0; i < numGde; i++) gdv.setUint32(i * 4, firstGtSector + i * 4, true);
+    await out.write(gdBuf);
+    await out.write(gtBuf);
+  };
+  await writeDirectory(rgtOffset);          // redundant copy
+  await writeDirectory(gtOffset);
+
+  await writeZeros(out, (overhead - (gtOffset + gtSectors)) * SECTOR);
+
+  const tick = progressReporter(capacity * SECTOR, (p) => onProgress && onProgress(35 + p * 0.65));
+  for (let i = 0; i < numGrains; i++) {
+    checkCancel(token);
+    const offset = i * grainBytes;
+    if (!allocated[i]) { tick(grainBytes); continue; }
+    const avail = Math.max(0, Math.min(grainBytes, image.virtualSize - offset));
+    await copyRange(image, out, offset, avail, token, tick);
+    if (avail < grainBytes) { await writeZeros(out, grainBytes - avail); tick(grainBytes - avail); }
+  }
+}
+
+async function convertImage(image, out, target, { token, onProgress, name } = {}) {
+  switch (target) {
+    case "raw": return writeRaw(image, out, token, onProgress);
+    case "vhd-fixed": return writeVhdFixed(image, out, token, onProgress);
+    case "vhd-dynamic": return writeVhdDynamic(image, out, token, onProgress);
+    case "vmdk": return writeVmdkSparse(image, out, token, onProgress, name || "disk.vmdk");
+    default: throw new Error(`${target} cannot be produced in the browser — use qemu-img.`);
+  }
+}
+/* CORE-END */
+
+/* ---------- browser glue ---------- */
+if (typeof document !== "undefined") {
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $("file"), drop = $("drop"), facts = $("facts");
+  const targetSel = $("target"), go = $("go"), cancelBtn = $("cancel");
+  const bar = $("bar"), status = $("status"), done = $("done"), err = $("err");
+  const srcErr = $("src-err"), toolNote = $("tool-note"), cmdBox = $("cmd"), copyBtn = $("copy");
+
+  let picked = null, image = null, token = null;
+
+  const show = (el, text) => { if (text !== undefined) el.textContent = text; el.classList.remove("hidden"); };
+  const hide = (el) => el.classList.add("hidden");
+
+  function fileSource(file) {
+    return { size: file.size, async read(offset, length) {
+      return new Uint8Array(await file.slice(offset, offset + length).arrayBuffer());
+    } };
+  }
+
+  function outputName() {
+    const base = (picked?.name || "disk").replace(/\.[^.]+$/, "");
+    const t = targetSel.value;
+    return base + (IN_BROWSER[t]?.ext || TOOL_ONLY[t]?.ext || ".img");
+  }
+
+  function refreshTarget() {
+    const t = targetSel.value;
+    const tool = TOOL_ONLY[t];
+    if (tool) {
+      show(toolNote, "This format needs qemu-img — a browser tab can't produce it. Install qemu-img and run:");
+      show(cmdBox, `qemu-img convert -p -O ${tool.flag} "${picked?.name || "input.vhd"}" "${outputName()}"`);
+      show(copyBtn);
+    } else { hide(toolNote); hide(cmdBox); hide(copyBtn); }
+    go.disabled = !!tool || !image;
+    if (tool) status.textContent = "Copy the command above and run it in a terminal.";
+    else if (image) status.textContent = "Ready.";
+  }
+
+  async function loadFile(file) {
+    picked = file; image = null;
+    hide(srcErr); hide(done); hide(err); hide(bar);
+    $("f-name").textContent = file.name;
+    $("f-fmt").textContent = "reading…";
+    $("f-size").textContent = "";
+    show(facts);
+    try {
+      image = await openImage(fileSource(file), file.name);
+      $("f-fmt").textContent = image.format;
+      $("f-size").textContent = `${humanSize(image.virtualSize)} (file on disk: ${humanSize(file.size)})`;
+    } catch (e) {
+      $("f-fmt").textContent = "unsupported";
+      show(srcErr, e.message);
+    }
+    refreshTarget();
+  }
+
+  drop.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => fileInput.files[0] && loadFile(fileInput.files[0]));
+  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => {
+    e.preventDefault(); drop.classList.add("over");
+  }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("over")));
+  drop.addEventListener("drop", (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+  targetSel.addEventListener("change", refreshTarget);
+  copyBtn.addEventListener("click", () => navigator.clipboard.writeText(cmdBox.textContent));
+
+  async function openOutput(name) {
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({ suggestedName: name });
+      const stream = await handle.createWritable();
+      return { write: (c) => stream.write(c), close: () => stream.close(), streamed: true };
+    }
+    // Safari/Firefox: buffer in memory, then hand over a download.
+    const parts = [];
+    return {
+      write: (c) => { parts.push(c.slice()); },
+      close: async () => {
+        const url = URL.createObjectURL(new Blob(parts, { type: "application/octet-stream" }));
+        const a = document.createElement("a");
+        a.href = url; a.download = name; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      },
+      streamed: false,
+    };
+  }
+
+  go.addEventListener("click", async () => {
+    if (!image) return;
+    hide(done); hide(err);
+    const name = outputName();
+    let out;
+    try {
+      out = await openOutput(name);
+    } catch { return; }                       // user dismissed the save dialog
+    if (!out.streamed && image.virtualSize > 1.5 * 1024 * 1024 * 1024) {
+      show(err, "This browser has to hold the whole output in memory, and this disk is too big for that. " +
+                "Use Chrome or Edge (they write straight to disk), or use the desktop app in this project.");
+      return;
+    }
+
+    token = { cancelled: false };
+    go.disabled = true; show(cancelBtn); show(bar); bar.value = 0;
+    status.textContent = "Converting…";
+    const started = Date.now();
+    try {
+      await convertImage(image, out, targetSel.value, {
+        token, name,
+        onProgress: (p) => { bar.value = p; status.textContent = `Converting… ${p.toFixed(1)}%`; },
+      });
+      await out.close();
+      bar.value = 100;
+      status.textContent = "Finished.";
+      show(done, `Wrote ${name} in ${Math.round((Date.now() - started) / 1000)}s. ` +
+                 `Attach it to a new VM — match the firmware to the disk (BIOS for MBR, UEFI for GPT).`);
+    } catch (e) {
+      status.textContent = token.cancelled ? "Cancelled." : "Failed.";
+      if (!token.cancelled) show(err, e.message);
+      try { await out.close(); } catch {}
+    } finally {
+      hide(cancelBtn); go.disabled = false; token = null;
+    }
+  });
+
+  cancelBtn.addEventListener("click", () => { if (token) token.cancelled = true; });
+  refreshTarget();
+}
+</script>
+</body>
+</html>

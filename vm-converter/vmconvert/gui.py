@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import queue
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from .core import TARGETS, ConversionError, convert, default_output_path
+from .core import TARGETS, ConversionError, convert, default_output_path, qemu_img
 
 _LABEL_TO_KEY = {spec["label"]: key for key, spec in TARGETS.items()}
 
@@ -34,6 +36,20 @@ class App(ttk.Frame):
         self._build()
         self._on_format_change()
         self.after(100, self._drain_events)
+        self.after(200, self._check_environment)
+
+    def _check_environment(self) -> None:
+        """Tell the user up front if qemu-img is missing, not after they hit Convert."""
+        try:
+            qemu_img()
+        except ConversionError as exc:
+            self.status_var.set("qemu-img is not installed — click 'How to install' below.")
+            self.run_btn.state(["disabled"])
+            self.help_btn.grid()
+            self._install_help = str(exc)
+
+    def _show_install_help(self) -> None:
+        messagebox.showinfo("Install qemu-img", getattr(self, "_install_help", ""))
 
     def _build(self) -> None:
         ttk.Label(self, text="Source image").grid(row=0, column=0, sticky="w", pady=4)
@@ -73,8 +89,27 @@ class App(ttk.Frame):
         self.log.grid(row=7, column=0, columnspan=3, sticky="nsew", pady=8)
         self.rowconfigure(7, weight=1)
 
+        self.help_btn = ttk.Button(self, text="How to install qemu-img", command=self._show_install_help)
+        self.help_btn.grid(row=8, column=0, sticky="w")
+        self.help_btn.grid_remove()  # only shown when qemu-img is missing
+
+        self.open_btn = ttk.Button(self, text="Open output folder", command=self._open_output_folder)
+        self.open_btn.grid(row=8, column=1, sticky="e", padx=6)
+        self.open_btn.grid_remove()
+
         self.run_btn = ttk.Button(self, text="Convert", command=self._start)
         self.run_btn.grid(row=8, column=2, sticky="e")
+
+    def _open_output_folder(self) -> None:
+        folder = os.path.dirname(os.path.abspath(self.dst_var.get()))
+        if not os.path.isdir(folder):
+            return
+        if sys.platform == "win32":
+            os.startfile(folder)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", folder])
+        else:
+            subprocess.Popen(["xdg-open", folder])
 
     # --- ui helpers -------------------------------------------------
     def _target_key(self) -> str:
@@ -161,6 +196,7 @@ class App(ttk.Frame):
                 self._append(str(payload))
             elif kind == "done":
                 self.status_var.set(f"Finished: {payload}")
+                self.open_btn.grid()
                 self.run_btn.state(["!disabled"])
             elif kind == "error":
                 self.status_var.set("Failed — see log below.")

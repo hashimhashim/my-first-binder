@@ -39,3 +39,19 @@ those lines from the `PatchItem` actions if your list is simpler.
 
 Connection names (`shared_sharepointonline`, `shared_approvals`, `shared_office365`)
 are re-bound by the designer to your own connections when the flow is saved.
+
+## Importing the package
+
+`TestRequestApproval.zip` is a legacy import package built from
+`test-request-approval-flow.json` by `build-package.py`.
+
+1. flow.microsoft.com → **My flows** → **Import** → **Import Package (Legacy)**.
+2. Upload `TestRequestApproval.zip`.
+3. On the review screen, set the flow's **Import setup** to *Create as new*, and
+   pick your own connection for each of SharePoint, Approvals, and Outlook
+   (they import as *Select during import*).
+4. **Import**, then open the flow and replace the site URL / list name
+   placeholders listed above before turning it on.
+
+Re-run `python3 build-package.py` after editing the flow definition to rebuild
+the zip.

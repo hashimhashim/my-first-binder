@@ -1,0 +1,94 @@
+{
+  "type": "Foreach",
+  "foreach": "@outputs('Start_and_wait_for_an_approval')?['body/responses']",
+  "actions": {
+    "Condition": {
+      "type": "If",
+      "expression": {
+        "equals": [
+          "@items('Apply_to_each')?['approverResponse']",
+          "Approve"
+        ]
+      },
+      "actions": {
+        "Inform_item_creator_of_approval": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "emailMessage/To": "@triggerOutputs()?['body/Author/Email']",
+              "emailMessage/Subject": "Test item: @{triggerOutputs()?['body/Title']} was approved",
+              "emailMessage/Body": "<p>Your test request <b>@{triggerOutputs()?['body/Title']}</b> was approved by @{items('Apply_to_each')?['approver/displayName']}.</p><p>Comments: @{items('Apply_to_each')?['comments']}</p>"
+            },
+            "host": {
+              "connectionName": "shared_office365",
+              "operationId": "SendEmailV2",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+            },
+            "authentication": "@parameters('$authentication')"
+          },
+          "runAfter": {}
+        },
+        "Update_test_item_as_approved": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "dataset": "https://contoso.sharepoint.com/sites/YourSite",
+              "table": "Test",
+              "id": "@triggerOutputs()?['body/ID']",
+              "item/Status/Value": "Approved",
+              "item/ApproverComments": "@items('Apply_to_each')?['comments']"
+            },
+            "host": {
+              "connectionName": "shared_sharepointonline",
+              "operationId": "PatchItem",
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+            },
+            "authentication": "@parameters('$authentication')"
+          },
+          "runAfter": { "Inform_item_creator_of_approval": [ "Succeeded" ] }
+        }
+      },
+      "else": {
+        "actions": {
+          "Inform_item_creator_of_rejection": {
+            "type": "OpenApiConnection",
+            "inputs": {
+              "parameters": {
+                "emailMessage/To": "@triggerOutputs()?['body/Author/Email']",
+                "emailMessage/Subject": "Test item: @{triggerOutputs()?['body/Title']} was rejected",
+                "emailMessage/Body": "<p>Your test request <b>@{triggerOutputs()?['body/Title']}</b> was rejected by @{items('Apply_to_each')?['approver/displayName']}.</p><p>Comments: @{items('Apply_to_each')?['comments']}</p>"
+              },
+              "host": {
+                "connectionName": "shared_office365",
+                "operationId": "SendEmailV2",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+              },
+              "authentication": "@parameters('$authentication')"
+            },
+            "runAfter": {}
+          },
+          "Update_test_item_as_rejected": {
+            "type": "OpenApiConnection",
+            "inputs": {
+              "parameters": {
+                "dataset": "https://contoso.sharepoint.com/sites/YourSite",
+                "table": "Test",
+                "id": "@triggerOutputs()?['body/ID']",
+                "item/Status/Value": "Rejected",
+                "item/ApproverComments": "@items('Apply_to_each')?['comments']"
+              },
+              "host": {
+                "connectionName": "shared_sharepointonline",
+                "operationId": "PatchItem",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+              },
+              "authentication": "@parameters('$authentication')"
+            },
+            "runAfter": { "Inform_item_creator_of_rejection": [ "Succeeded" ] }
+          }
+        }
+      }
+    }
+  },
+  "runAfter": { "Start_and_wait_for_an_approval": [ "Succeeded" ] }
+}

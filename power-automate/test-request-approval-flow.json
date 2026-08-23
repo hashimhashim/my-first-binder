@@ -1,0 +1,163 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": { "defaultValue": {}, "type": "Object" },
+      "$authentication": { "defaultValue": {}, "type": "SecureObject" }
+    },
+    "triggers": {
+      "When_a_test_item_is_created": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "GetOnNewItems",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "https://contoso.sharepoint.com/sites/YourSite",
+            "table": "Test"
+          },
+          "authentication": "@parameters('$authentication')"
+        },
+        "recurrence": { "frequency": "Minute", "interval": 3 },
+        "metadata": { "operationMetadataId": "11111111-1111-1111-1111-111111111111" }
+      }
+    },
+    "actions": {
+      "Set_test_item_to_pending": {
+        "type": "OpenApiConnection",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "PatchItem",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "https://contoso.sharepoint.com/sites/YourSite",
+            "table": "Test",
+            "id": "@triggerOutputs()?['body/ID']",
+            "item/Status/Value": "Pending"
+          },
+          "authentication": "@parameters('$authentication')"
+        },
+        "runAfter": {}
+      },
+      "Start_and_wait_for_an_approval": {
+        "type": "OpenApiConnectionWebhook",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_approvals",
+            "operationId": "StartAndWaitForAnApproval",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_approvals"
+          },
+          "parameters": {
+            "approvalType": "Basic",
+            "ApprovalCreationInput/title": "Test request: @{triggerOutputs()?['body/Title']}",
+            "ApprovalCreationInput/assignedTo": "approver@contoso.com",
+            "ApprovalCreationInput/details": "Requested by: @{triggerOutputs()?['body/Author/DisplayName']}\nDetails: @{triggerOutputs()?['body/Description']}",
+            "ApprovalCreationInput/itemLink": "@{triggerOutputs()?['body/{Link}']}",
+            "ApprovalCreationInput/itemLinkDescription": "Open the test item"
+          },
+          "authentication": "@parameters('$authentication')"
+        },
+        "runAfter": { "Set_test_item_to_pending": [ "Succeeded" ] }
+      },
+      "Apply_to_each": {
+        "type": "Foreach",
+        "foreach": "@outputs('Start_and_wait_for_an_approval')?['body/responses']",
+        "actions": {
+          "Condition": {
+            "type": "If",
+            "expression": {
+              "equals": [
+                "@items('Apply_to_each')?['approverResponse']",
+                "Approve"
+              ]
+            },
+            "actions": {
+              "Inform_item_creator_of_approval": {
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@triggerOutputs()?['body/Author/Email']",
+                    "emailMessage/Subject": "Test item: @{triggerOutputs()?['body/Title']} was approved",
+                    "emailMessage/Body": "<p>Your test request <b>@{triggerOutputs()?['body/Title']}</b> was approved by @{items('Apply_to_each')?['approver/displayName']}.</p><p>Comments: @{items('Apply_to_each')?['comments']}</p>"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                },
+                "runAfter": {}
+              },
+              "Update_test_item_as_approved": {
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "https://contoso.sharepoint.com/sites/YourSite",
+                    "table": "Test",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item/Status/Value": "Approved",
+                    "item/ApproverComments": "@items('Apply_to_each')?['comments']"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                },
+                "runAfter": { "Inform_item_creator_of_approval": [ "Succeeded" ] }
+              }
+            },
+            "else": {
+              "actions": {
+                "Inform_item_creator_of_rejection": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                    },
+                    "parameters": {
+                      "emailMessage/To": "@triggerOutputs()?['body/Author/Email']",
+                      "emailMessage/Subject": "Test item: @{triggerOutputs()?['body/Title']} was rejected",
+                      "emailMessage/Body": "<p>Your test request <b>@{triggerOutputs()?['body/Title']}</b> was rejected by @{items('Apply_to_each')?['approver/displayName']}.</p><p>Comments: @{items('Apply_to_each')?['comments']}</p>"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  },
+                  "runAfter": {}
+                },
+                "Update_test_item_as_rejected": {
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_sharepointonline",
+                      "operationId": "PatchItem",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                    },
+                    "parameters": {
+                      "dataset": "https://contoso.sharepoint.com/sites/YourSite",
+                      "table": "Test",
+                      "id": "@triggerOutputs()?['body/ID']",
+                      "item/Status/Value": "Rejected",
+                      "item/ApproverComments": "@items('Apply_to_each')?['comments']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  },
+                  "runAfter": { "Inform_item_creator_of_rejection": [ "Succeeded" ] }
+                }
+              }
+            }
+          }
+        },
+        "runAfter": { "Start_and_wait_for_an_approval": [ "Succeeded" ] }
+      }
+    }
+  }
+}

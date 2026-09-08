@@ -23,6 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
       - run: npm test
       # Fails if public/ and src/assets.ts have drifted apart, or if any
       # assetFile()/staticFile() call points at a file that is not there.

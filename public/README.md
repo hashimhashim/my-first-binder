@@ -54,6 +54,19 @@ serving these from a CDN with a long cache lifetime.
 | `npm run scan:watch` | Regenerate on every change to this folder |
 | `npm run scan -- --json` | Also write `src/assets.json` for external tooling |
 
+## Previewing what is here
+
+The `AssetBrowser` composition renders the whole manifest as a contact sheet —
+thumbnails for images, a frame for video, a waveform for audio, and the scanned
+metadata under each. Open it in `npm start`, or render a still:
+
+```
+npx remotion still AssetBrowser assets.png
+```
+
+It reads `src/assets.ts` only, so it always shows exactly what the last scan
+found — including an empty state when `public/` has nothing in it.
+
 ## What the scan reports
 
 **Problems** (these fail `scan:check`):

@@ -1,3 +1,7 @@
 node_modules/
 out/
 .cache/
+
+# honeypot runtime output
+honeypot/honeypot-events.jsonl
+__pycache__/

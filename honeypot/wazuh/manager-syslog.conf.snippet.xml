@@ -1,0 +1,12 @@
+<!--
+  Only for the syslog path (no agent on the honeypot host). Paste inside
+  <ossec_config> in /var/ossec/etc/ossec.conf on the Wazuh MANAGER, then
+  systemctl restart wazuh-manager. Replace allowed-ips with the honeypot host.
+  Start the honeypot with:  syslog set to MANAGER-IP:514 and syslog-format rawjson
+-->
+<remote>
+  <connection>syslog</connection>
+  <port>514</port>
+  <protocol>udp</protocol>
+  <allowed-ips>10.0.0.0/24</allowed-ips>
+</remote>

@@ -3,6 +3,7 @@
   Install:  copy to /var/ossec/etc/rules/honey-bit_rules.xml on the manager, then
             systemctl restart wazuh-manager
   Rule IDs 100800-100849 are in the custom range (100000-120000).
+  Compliance tags: PCI DSS, NIST 800-53, HIPAA, GDPR, TSC, GPG13 on every alerting rule.
 
   Every event carries product="honey-bit". Nobody should ever touch a honeypot,
   so even a plain connection is worth a level 5 and any login attempt is level 12.
@@ -22,6 +23,10 @@
     <field name="event_type">^honeypot_start$</field>
     <description>honey-bit: honeypot sensor $(sensor) started</description>
     <group>honeypot_lifecycle,</group>
+    <pci_dss>10.6.1,10.7</pci_dss>
+    <nist_800_53>AU.6,AU.12</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <tsc>CC7.2</tsc>
   </rule>
 
   <rule id="100802" level="8">
@@ -29,6 +34,10 @@
     <field name="event_type">^honeypot_stop$</field>
     <description>honey-bit: honeypot sensor $(sensor) stopped - detection coverage lost</description>
     <group>honeypot_lifecycle,</group>
+    <pci_dss>10.6.1,10.7</pci_dss>
+    <nist_800_53>AU.6,AU.12</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <tsc>CC7.2</tsc>
   </rule>
 
   <!-- ===== single events ===== -->
@@ -38,6 +47,11 @@
     <description>honey-bit: $(src_ip) connected to honeypot $(service) service on port $(dst_port)</description>
     <mitre><id>T1046</id></mitre>
     <group>honeypot_connection,</group>
+    <pci_dss>11.4</pci_dss>
+    <nist_800_53>SI.4</nist_800_53>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <rule id="100811" level="0">
@@ -52,6 +66,12 @@
     <description>honey-bit: credential attempt on honeypot $(service) from $(src_ip) - user "$(username)"</description>
     <mitre><id>T1110</id><id>T1078</id></mitre>
     <group>honeypot_login,authentication_failed,</group>
+    <pci_dss>10.2.4,10.2.5,10.6.1</pci_dss>
+    <nist_800_53>AU.14,AC.7,SI.4</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <gdpr>IV_35.7.d,IV_32.2</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>7.1</gpg13>
   </rule>
 
   <rule id="100813" level="5">
@@ -60,14 +80,25 @@
     <description>honey-bit: HTTP $(http_method) $(http_path) from $(src_ip)</description>
     <mitre><id>T1595</id></mitre>
     <group>honeypot_http,web,</group>
+    <pci_dss>11.4</pci_dss>
+    <nist_800_53>SI.4</nist_800_53>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <rule id="100814" level="10">
     <if_sid>100813</if_sid>
-    <field name="indicator_count">^[1-9]</field>
+    <field name="indicator_count" type="pcre2">^[1-9]</field>
     <description>honey-bit: web attack pattern from $(src_ip) - $(http_method) $(http_path) [$(indicators)]</description>
     <mitre><id>T1190</id></mitre>
     <group>honeypot_http,web_attack,attack,</group>
+    <pci_dss>6.5,11.4</pci_dss>
+    <nist_800_53>SI.4,SI.3</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <rule id="100815" level="7">
@@ -76,6 +107,11 @@
     <description>honey-bit: SSH client "$(client_banner)" from $(src_ip) hit honeypot</description>
     <mitre><id>T1021.004</id></mitre>
     <group>honeypot_ssh,</group>
+    <pci_dss>11.4</pci_dss>
+    <nist_800_53>SI.4</nist_800_53>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <rule id="100816" level="8">
@@ -84,6 +120,12 @@
     <description>honey-bit: SSH key exchange attempted from $(src_ip) - real SSH client, not just a banner grab</description>
     <mitre><id>T1110</id></mitre>
     <group>honeypot_ssh,</group>
+    <pci_dss>10.2.4,10.2.5,10.6.1</pci_dss>
+    <nist_800_53>AU.14,AC.7,SI.4</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <gdpr>IV_35.7.d,IV_32.2</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>7.1</gpg13>
   </rule>
 
   <rule id="100817" level="6">
@@ -91,6 +133,11 @@
     <field name="event_type">^ftp_command$</field>
     <description>honey-bit: unauthenticated FTP command $(command) from $(src_ip)</description>
     <group>honeypot_ftp,</group>
+    <pci_dss>11.4</pci_dss>
+    <nist_800_53>SI.4</nist_800_53>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <rule id="100818" level="7">
@@ -98,6 +145,11 @@
     <field name="event_type">^payload$</field>
     <description>honey-bit: raw payload ($(payload_len) bytes) sent to $(service) port $(dst_port) from $(src_ip)</description>
     <group>honeypot_payload,</group>
+    <pci_dss>11.4</pci_dss>
+    <nist_800_53>SI.4</nist_800_53>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <!-- ===== correlation rules (same source, time window) ===== -->
@@ -109,6 +161,12 @@
     <description>honey-bit: brute force - $(src_ip) made 5+ credential attempts on honeypot in 2 minutes</description>
     <mitre><id>T1110.001</id></mitre>
     <group>honeypot_bruteforce,authentication_failures,</group>
+    <pci_dss>10.2.4,10.2.5,10.6.1</pci_dss>
+    <nist_800_53>AU.14,AC.7,SI.4</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <gdpr>IV_35.7.d,IV_32.2</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>7.1</gpg13>
   </rule>
 
   <!-- same IP hitting several honeypot services quickly = port / service scan -->
@@ -118,6 +176,11 @@
     <description>honey-bit: scan - $(src_ip) opened 8+ connections to honeypot services in 1 minute</description>
     <mitre><id>T1046</id><id>T1595.001</id></mitre>
     <group>honeypot_scan,recon,</group>
+    <pci_dss>11.4</pci_dss>
+    <nist_800_53>SI.4</nist_800_53>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
   <!-- repeated web attack patterns = vulnerability scanner -->
@@ -127,15 +190,28 @@
     <description>honey-bit: web vulnerability scan - $(src_ip) sent 3+ attack patterns in 1 minute</description>
     <mitre><id>T1595.002</id><id>T1190</id></mitre>
     <group>honeypot_scan,web_scan,</group>
+    <pci_dss>6.5,11.4</pci_dss>
+    <nist_800_53>SI.4,SI.3</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <gdpr>IV_35.7.d</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>4.12</gpg13>
   </rule>
 
-  <!-- an attacker who tried creds is now probing the web service too -->
+  <!-- same IP guessing credentials on two different honeypot services (e.g. Telnet then FTP) -->
   <rule id="100833" level="12" frequency="2" timeframe="600">
-    <if_matched_sid>100813</if_matched_sid>
-    <if_matched_group>honeypot_login</if_matched_group>
+    <if_matched_sid>100812</if_matched_sid>
     <same_field>src_ip</same_field>
-    <description>honey-bit: multi-service attacker - $(src_ip) tried credentials and is probing HTTP</description>
-    <group>honeypot_multiservice,</group>
+    <different_field>service</different_field>
+    <description>honey-bit: multi-service attacker - $(src_ip) is guessing credentials across several honeypot services</description>
+    <mitre><id>T1110</id></mitre>
+    <group>honeypot_multiservice,authentication_failures,</group>
+    <pci_dss>10.2.4,10.2.5,10.6.1</pci_dss>
+    <nist_800_53>AU.14,AC.7,SI.4</nist_800_53>
+    <hipaa>164.312.b</hipaa>
+    <gdpr>IV_35.7.d,IV_32.2</gdpr>
+    <tsc>CC6.1,CC6.8,CC7.2,CC7.3</tsc>
+    <gpg13>7.1</gpg13>
   </rule>
 
 </group>

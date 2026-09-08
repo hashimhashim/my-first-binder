@@ -16,7 +16,7 @@
 
 <decoder name="honey-bit-syslog-json">
   <parent>honey-bit-syslog</parent>
-  <regex offset="after_parent">honey-bit - \S+ - (\{.+\})$</regex>
+  <regex type="pcre2" offset="after_parent">honey-bit - \S+ - (\{.+\})$</regex>
   <order>json_body</order>
   <plugin_decoder offset="after_regex">JSON_Decoder</plugin_decoder>
 </decoder>

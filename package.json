@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "scan": "node scripts/scan-assets.mjs",
+    "prestart": "npm run scan",
     "start": "remotion studio",
+    "prebuild": "npm run scan",
     "build": "remotion render MyComposition",
     "preview": "remotion preview"
   },

@@ -1,0 +1,10 @@
+{
+  "bind": "0.0.0.0",
+  "listen": ["ssh:2222", "http:8080", "telnet:2323", "ftp:2121", "tcp:3389"],
+  "log_file": "/var/log/honeypot/events.jsonl",
+  "syslog": "siem.example.internal:514",
+  "syslog_proto": "udp",
+  "syslog_format": "json",
+  "sensor_name": "honey-bit-01",
+  "quiet": false
+}

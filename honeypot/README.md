@@ -17,6 +17,7 @@ classify the events.
 | `simulate_attacks.py` | Traffic generator that produces a predictable set of events |
 | `honeypot.example.json` | Sample config file |
 | `test_honeypot.py` | End-to-end smoke test (starts the honeypot, attacks it, checks the log and syslog output) |
+| `TESTING.md` | Where and how to test: controlled lab test vs. live internet-exposed honeypot |
 
 ## Quick start
 

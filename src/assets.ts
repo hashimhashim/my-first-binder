@@ -9,9 +9,19 @@ export type Asset = {
 	kind: AssetKind;
 	extension: string;
 	bytes: number;
-	/** Present for images whose header could be parsed. */
+	/** First 12 hex chars of the file's sha256 — stable content identity. */
+	hash: string;
+	/** Images and videos. */
 	width?: number;
 	height?: number;
+	/** Video and audio. */
+	durationInSeconds?: number;
+	/** Video only. */
+	fps?: number;
+	codec?: string;
+	/** Audio only. */
+	channels?: number;
+	sampleRate?: number;
 };
 
 export const assets = {} as const satisfies Record<string, Asset>;

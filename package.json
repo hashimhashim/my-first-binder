@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "node --test \"scripts/**/*.test.mjs\"",
     "scan": "node scripts/scan-assets.mjs",
+    "scan:check": "node scripts/scan-assets.mjs --check",
+    "scan:watch": "node scripts/scan-assets.mjs --watch",
     "prestart": "npm run scan",
     "start": "remotion studio",
     "prebuild": "npm run scan",

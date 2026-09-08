@@ -1,0 +1,22 @@
+<!--
+  Decoder for honey-bit events that arrive over the manager's remote syslog
+  input with the default RFC 5424 framing (syslog-format json):
+
+    <133>1 2026-09-08T17:06:40.123Z honey-bit-01 honey-bit - login_attempt - {"event_type":...}
+
+  Not needed when the honeypot writes JSON to a file read by a Wazuh agent
+  (log_format json), nor when using the rawjson syslog format (Wazuh's built-in
+  JSON decoder handles bare JSON lines).
+
+  Install:  copy to /var/ossec/etc/decoders/honey-bit_decoders.xml, restart wazuh-manager
+-->
+<decoder name="honey-bit-syslog">
+  <prematch>honey-bit - \S+ - {</prematch>
+</decoder>
+
+<decoder name="honey-bit-syslog-json">
+  <parent>honey-bit-syslog</parent>
+  <regex offset="after_parent">honey-bit - \S+ - (\{.+\})$</regex>
+  <order>json_body</order>
+  <plugin_decoder offset="after_regex">JSON_Decoder</plugin_decoder>
+</decoder>

@@ -1,0 +1,141 @@
+<!--
+  honey-bit honeypot rules for Wazuh.
+  Install:  copy to /var/ossec/etc/rules/honey-bit_rules.xml on the manager, then
+            systemctl restart wazuh-manager
+  Rule IDs 100800-100849 are in the custom range (100000-120000).
+
+  Every event carries product="honey-bit". Nobody should ever touch a honeypot,
+  so even a plain connection is worth a level 5 and any login attempt is level 12.
+-->
+<group name="honeypot,honey-bit,">
+
+  <!-- ===== base rule: anything from the honeypot ===== -->
+  <rule id="100800" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="product">^honey-bit$</field>
+    <description>honey-bit: honeypot event</description>
+  </rule>
+
+  <!-- ===== lifecycle ===== -->
+  <rule id="100801" level="3">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^honeypot_start$</field>
+    <description>honey-bit: honeypot sensor $(sensor) started</description>
+    <group>honeypot_lifecycle,</group>
+  </rule>
+
+  <rule id="100802" level="8">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^honeypot_stop$</field>
+    <description>honey-bit: honeypot sensor $(sensor) stopped - detection coverage lost</description>
+    <group>honeypot_lifecycle,</group>
+  </rule>
+
+  <!-- ===== single events ===== -->
+  <rule id="100810" level="5">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^connection$</field>
+    <description>honey-bit: $(src_ip) connected to honeypot $(service) service on port $(dst_port)</description>
+    <mitre><id>T1046</id></mitre>
+    <group>honeypot_connection,</group>
+  </rule>
+
+  <rule id="100811" level="0">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^disconnect$</field>
+    <description>honey-bit: session closed (noise, not alerted)</description>
+  </rule>
+
+  <rule id="100812" level="12">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^login_attempt$</field>
+    <description>honey-bit: credential attempt on honeypot $(service) from $(src_ip) - user "$(username)"</description>
+    <mitre><id>T1110</id><id>T1078</id></mitre>
+    <group>honeypot_login,authentication_failed,</group>
+  </rule>
+
+  <rule id="100813" level="5">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^http_request$</field>
+    <description>honey-bit: HTTP $(http_method) $(http_path) from $(src_ip)</description>
+    <mitre><id>T1595</id></mitre>
+    <group>honeypot_http,web,</group>
+  </rule>
+
+  <rule id="100814" level="10">
+    <if_sid>100813</if_sid>
+    <field name="indicator_count">^[1-9]</field>
+    <description>honey-bit: web attack pattern from $(src_ip) - $(http_method) $(http_path) [$(indicators)]</description>
+    <mitre><id>T1190</id></mitre>
+    <group>honeypot_http,web_attack,attack,</group>
+  </rule>
+
+  <rule id="100815" level="7">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^ssh_banner$</field>
+    <description>honey-bit: SSH client "$(client_banner)" from $(src_ip) hit honeypot</description>
+    <mitre><id>T1021.004</id></mitre>
+    <group>honeypot_ssh,</group>
+  </rule>
+
+  <rule id="100816" level="8">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^ssh_kexinit$</field>
+    <description>honey-bit: SSH key exchange attempted from $(src_ip) - real SSH client, not just a banner grab</description>
+    <mitre><id>T1110</id></mitre>
+    <group>honeypot_ssh,</group>
+  </rule>
+
+  <rule id="100817" level="6">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^ftp_command$</field>
+    <description>honey-bit: unauthenticated FTP command $(command) from $(src_ip)</description>
+    <group>honeypot_ftp,</group>
+  </rule>
+
+  <rule id="100818" level="7">
+    <if_sid>100800</if_sid>
+    <field name="event_type">^payload$</field>
+    <description>honey-bit: raw payload ($(payload_len) bytes) sent to $(service) port $(dst_port) from $(src_ip)</description>
+    <group>honeypot_payload,</group>
+  </rule>
+
+  <!-- ===== correlation rules (same source, time window) ===== -->
+
+  <!-- 5 credential attempts from one IP within 2 minutes -->
+  <rule id="100830" level="13" frequency="5" timeframe="120">
+    <if_matched_sid>100812</if_matched_sid>
+    <same_field>src_ip</same_field>
+    <description>honey-bit: brute force - $(src_ip) made 5+ credential attempts on honeypot in 2 minutes</description>
+    <mitre><id>T1110.001</id></mitre>
+    <group>honeypot_bruteforce,authentication_failures,</group>
+  </rule>
+
+  <!-- same IP hitting several honeypot services quickly = port / service scan -->
+  <rule id="100831" level="10" frequency="8" timeframe="60">
+    <if_matched_sid>100810</if_matched_sid>
+    <same_field>src_ip</same_field>
+    <description>honey-bit: scan - $(src_ip) opened 8+ connections to honeypot services in 1 minute</description>
+    <mitre><id>T1046</id><id>T1595.001</id></mitre>
+    <group>honeypot_scan,recon,</group>
+  </rule>
+
+  <!-- repeated web attack patterns = vulnerability scanner -->
+  <rule id="100832" level="12" frequency="3" timeframe="60">
+    <if_matched_sid>100814</if_matched_sid>
+    <same_field>src_ip</same_field>
+    <description>honey-bit: web vulnerability scan - $(src_ip) sent 3+ attack patterns in 1 minute</description>
+    <mitre><id>T1595.002</id><id>T1190</id></mitre>
+    <group>honeypot_scan,web_scan,</group>
+  </rule>
+
+  <!-- an attacker who tried creds is now probing the web service too -->
+  <rule id="100833" level="12" frequency="2" timeframe="600">
+    <if_matched_sid>100813</if_matched_sid>
+    <if_matched_group>honeypot_login</if_matched_group>
+    <same_field>src_ip</same_field>
+    <description>honey-bit: multi-service attacker - $(src_ip) tried credentials and is probing HTTP</description>
+    <group>honeypot_multiservice,</group>
+  </rule>
+
+</group>

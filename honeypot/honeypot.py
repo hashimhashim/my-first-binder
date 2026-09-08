@@ -123,6 +123,10 @@ class EventSink:
     def _to_syslog(self, ev: Dict[str, Any]) -> bytes:
         # facility local0 (16), severity notice (5) => PRI 133
         ts = ev["@timestamp"]
+        if self._syslog_format == "rawjson":
+            # bare JSON object, no syslog header: Wazuh and other JSON-aware
+            # collectors decode this directly
+            return (json.dumps(ev, separators=(",", ":")) + "\n").encode("utf-8", "replace")
         body = self._to_cef(ev) if self._syslog_format == "cef" else json.dumps(ev, separators=(",", ":"))
         line = f"<133>1 {ts} {self.sensor} {PRODUCT} - {ev['event_type']} - {body}"
         return (line + "\n").encode("utf-8", "replace")
@@ -406,6 +410,7 @@ class HTTPHandler(HoneyHandler):
             content_length=int(headers.get("content-length", "0") or 0),
             body=_printable(body)[:1024],
             indicators=suspicious,
+            indicator_count=len(suspicious),
         )
 
         if path.startswith("/admin") or path.startswith("/login"):
@@ -496,8 +501,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--log-file", dest="log_file", default="honeypot-events.jsonl", help="JSON lines output file ('' to disable)")
     p.add_argument("--syslog", metavar="HOST:PORT", help="forward events to this syslog collector")
     p.add_argument("--syslog-proto", dest="syslog_proto", choices=("udp", "tcp"), default="udp")
-    p.add_argument("--syslog-format", dest="syslog_format", choices=("json", "cef"), default="json",
-                   help="message body format inside the syslog frame")
+    p.add_argument("--syslog-format", dest="syslog_format", choices=("json", "cef", "rawjson"), default="json",
+                   help="syslog body format: json (RFC 5424 + JSON), cef, or rawjson (bare JSON line, best for Wazuh)")
     p.add_argument("--sensor-name", dest="sensor_name", help="value for the 'sensor' field (default hostname)")
     p.add_argument("--quiet", action="store_true", help="do not echo events to stdout")
     p.add_argument("--config", help="JSON config file (see honeypot.example.json)")

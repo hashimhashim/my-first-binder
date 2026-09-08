@@ -1,0 +1,10 @@
+<!--
+  Paste inside <ossec_config> in /var/ossec/etc/ossec.conf on the machine that
+  runs the honeypot (Wazuh agent installed there). Then: systemctl restart wazuh-agent
+  Path matches deploy/install.sh; adjust if you run the honeypot elsewhere.
+-->
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/log/honey-bit/events.jsonl</location>
+  <label key="honeypot">true</label>
+</localfile>

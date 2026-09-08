@@ -18,6 +18,7 @@ classify the events.
 | `honeypot.example.json` | Sample config file |
 | `test_honeypot.py` | End-to-end smoke test (starts the honeypot, attacks it, checks the log and syslog output) |
 | `TESTING.md` | Where and how to test: controlled lab test vs. live internet-exposed honeypot |
+| `wazuh/` | Wazuh rules (IDs 100800-100833), decoder, agent/manager config snippets and test guide |
 | `deploy/` | One-command server installer (systemd), Dockerfile, docker-compose and `DEPLOY.md` |
 | `samples/` | Captured example output (JSONL, syslog JSON, CEF) for SIEM replay |
 
@@ -99,8 +100,7 @@ CEF:0|my-first-binder|honey-bit|1.0.0|login_attempt|FTP credential attempt on ho
   `cef` if using CEF). Field extraction is automatic for JSON.
 - **Elastic / OpenSearch**: point Filebeat at `honeypot-events.jsonl` with
   `json.keys_under_root: true`, or use the Filebeat `syslog` input.
-- **Wazuh**: add a `<localfile>` with `<log_format>json</log_format>` for the
-  JSONL file, then write rules on `event_type` and `severity`.
+- **Wazuh**: ready-made rules, decoder and config are in `wazuh/`. See `wazuh/README.md`.
 - **Microsoft Sentinel**: ship via the Azure Monitor Agent syslog facility
   `local0`, or use the CEF connector with `--syslog-format cef`.
 - **Graylog / QRadar / others**: any syslog UDP/TCP listener works; the CEF

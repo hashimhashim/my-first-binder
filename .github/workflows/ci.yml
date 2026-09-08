@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  # A PR commit would otherwise run twice: once for the push, once for the
+  # pull_request. Restricting push to the long-lived branches leaves exactly
+  # one run per PR.
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Supersede an in-flight run when new commits land on the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Fails if public/ and src/assets.ts have drifted apart, or if any
+      # assetFile()/staticFile() call points at a file that is not there.
+      - run: npm run scan:check

@@ -4,7 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"scripts/**/*.test.mjs\"",
+    "scan": "node scripts/scan-assets.mjs",
+    "scan:check": "node scripts/scan-assets.mjs --check",
+    "scan:watch": "node scripts/scan-assets.mjs --watch",
+    "prestart": "npm run scan",
     "start": "remotion studio",
+    "prebuild": "npm run scan",
     "build": "remotion render MyComposition",
     "preview": "remotion preview"
   },
@@ -23,5 +30,8 @@
     "react-dom": "19.2.5",
     "remotion": "4.0.447",
     "typescript": "6.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0"
   }
 }

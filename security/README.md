@@ -176,3 +176,79 @@ Add to `/var/ossec/etc/rules/local_rules.xml` so script output raises alerts:
 
 Tip from the Wazuh docs: any documentation page is available as Markdown by
 replacing `.html` with `.md` in its URL, which is handy for feeding into an LLM.
+
+## Validating the matrix: clean first, then test one capability at a time
+
+The matrix above says what each capability *should* do. `validate_siem.sh` proves
+what it *actually* does on your host, one test at a time, and records the verdict
+so the claim becomes evidence.
+
+Ordering matters. Run `clean` first so the baseline reflects a known-good system
+and no stale artifact from an earlier run is still generating alerts. Testing
+against dirty data produces alerts you cannot attribute to the test that fired.
+
+```bash
+sudo ./security/validate_siem.sh clean     # reset baseline + remove old test artifacts
+./security/validate_siem.sh list           # 14 tests, with what has been recorded so far
+```
+
+Then work down the list. Each test fires exactly one trigger and tells you where
+to look and what signal to expect:
+
+```bash
+sudo ./security/validate_siem.sh run fim-01
+#   action  : Creates a new file in a monitored directory
+#   look in : Dashboard > Integrity monitoring
+#   expect  : rule 554 "File added to the system"
+```
+
+Look in the dashboard, then write down what actually happened:
+
+```bash
+./security/validate_siem.sh record fim-01 pass "rule 554 in 8s, path correct"
+./security/validate_siem.sh record mal-01 fail "no alert - VirusTotal key not set"
+```
+
+`report` renders the accumulated verdicts as a table you can hand to an auditor:
+
+```bash
+./security/validate_siem.sh report
+```
+
+### Test catalogue
+
+| Test | Capability it proves | Trigger |
+|------|----------------------|---------|
+| `fim-01` / `fim-02` / `fim-03` | File Integrity Monitoring | Creates, modifies, then deletes a marked file in a monitored directory |
+| `fim-04` | FIM who-data | Modifies the file and names the acting user, so you can confirm audit fields arrive |
+| `sca-01` | Configuration Assessment | Forces an on-demand SCA scan |
+| `mal-01` | Malware Detection | Writes the EICAR test string, the standard harmless antivirus probe |
+| `log-01` | Log Data Analysis | Appends one synthetic failed-password line to the auth log |
+| `bf-01` | Brute-force detection | Appends eight failures, enough to trip rule 5712 |
+| `ar-01` | Incident Response | Reads the active-response log for a reaction to `bf-01` |
+| `vul-01` | Vulnerability Detection | Reads the package inventory the detector correlates against CVE feeds |
+| `inv-01` | IT Hygiene | Prints host facts to compare against syscollector inventory |
+| `cmp-01` | Regulatory Compliance | Checks generated alerts carry PCI, NIST, and GDPR tags |
+| `att-01` | Threat Hunting | Checks generated alerts carry MITRE technique mapping |
+| `own-01` | This repo's scan | Emits a high-severity event and confirms custom rule 100201 picks it up |
+
+### What the tests do and do not touch
+
+Every trigger is non-destructive and reversible. The script tracks each file it
+creates and `clean` removes exactly those, nothing else. Synthetic log lines use
+192.0.2.77, an address reserved for documentation, so they can never be confused
+with a real source. The EICAR string is a published test pattern, not malware.
+
+`clean` never deletes SIEM indices. Clearing alert history is irreversible, so the
+script prints the command and leaves the decision to you. Filtering the dashboard
+to "after now" gives the same clean read without destroying history.
+
+### Reading a failure
+
+A `fail` verdict is the useful outcome, not a setback. It tells you the capability
+was counted in the matrix but is not delivering on this host. Common causes:
+
+- **FIM fires but has no who-data**: auditd is not running, or `whodata="yes"` is missing.
+- **Vulnerability list is empty**: the CVE feed never downloaded. Empty is not "clean".
+- **Alerts carry no compliance tags**: the ruleset is stripped or out of date.
+- **No active response after `bf-01`**: active response is configured but not enabled for that rule.

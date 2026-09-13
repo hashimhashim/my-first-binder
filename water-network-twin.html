@@ -1,0 +1,891 @@
+<title>التوأم الرقمي لشبكة المياه</title>
+<meta name="description" content="لوحة تشغيل SCADA لشبكة توزيع مياه: مناطق قياس DMA، حساسات ضغط وتدفق، كشف تسرب، وطبقة أمن OT.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    /* light palette (cool, instrument) */
+    --ground: #e9eef1;
+    --panel: #ffffff;
+    --panel-2: #f3f7f9;
+    --sunk: #eaf1f4;
+    --ink: #10242e;
+    --muted: #5a727d;
+    --faint: #8fa4ad;
+    --line: #d3dfe4;
+    --line-strong: #b9cbd2;
+    --accent: #0e8fa8;      /* water cyan */
+    --accent-soft: #d3edf3;
+    --flow: #12a594;        /* teal flow */
+    --pressure: #2f6fd0;    /* pressure blue */
+    --good: #1f9d63;
+    --warn: #c9820d;
+    --crit: #d23b3b;
+    --good-bg: #dff3e8;
+    --warn-bg: #faedd2;
+    --crit-bg: #fbe0e0;
+    --shadow: 0 1px 2px rgba(16,36,46,.06), 0 6px 20px rgba(16,36,46,.06);
+    --map-bg: #eef4f6;
+    --map-grid: #d7e4e9;
+    --pipe: #a9c1cb;
+    --zone: rgba(14,143,168,.06);
+    --zone-line: rgba(14,143,168,.35);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #081116;
+      --panel: #0f1d25;
+      --panel-2: #13232c;
+      --sunk: #0b171d;
+      --ink: #dbe8ed;
+      --muted: #8ba3ad;
+      --faint: #5e7580;
+      --line: #1d3540;
+      --line-strong: #294753;
+      --accent: #2bbcd6;
+      --accent-soft: #103038;
+      --flow: #2dd4bf;
+      --pressure: #5b9bff;
+      --good: #35c98a;
+      --warn: #e6a532;
+      --crit: #f0605f;
+      --good-bg: #0d2a20;
+      --warn-bg: #2c2413;
+      --crit-bg: #2e1517;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 26px rgba(0,0,0,.35);
+      --map-bg: #0a151b;
+      --map-grid: #12262f;
+      --pipe: #2d4652;
+      --zone: rgba(43,188,214,.05);
+      --zone-line: rgba(43,188,214,.32);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #081116;
+    --panel: #0f1d25;
+    --panel-2: #13232c;
+    --sunk: #0b171d;
+    --ink: #dbe8ed;
+    --muted: #8ba3ad;
+    --faint: #5e7580;
+    --line: #1d3540;
+    --line-strong: #294753;
+    --accent: #2bbcd6;
+    --accent-soft: #103038;
+    --flow: #2dd4bf;
+    --pressure: #5b9bff;
+    --good: #35c98a;
+    --warn: #e6a532;
+    --crit: #f0605f;
+    --good-bg: #0d2a20;
+    --warn-bg: #2c2413;
+    --crit-bg: #2e1517;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 26px rgba(0,0,0,.35);
+    --map-bg: #0a151b;
+    --map-grid: #12262f;
+    --pipe: #2d4652;
+    --zone: rgba(43,188,214,.05);
+    --zone-line: rgba(43,188,214,.32);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    direction: rtl;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans Arabic", system-ui, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+  .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- app shell ---------- */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  header.top {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 12px clamp(14px, 3vw, 26px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-inline-end: auto; }
+  .brand .mark {
+    width: 38px; height: 38px; border-radius: 9px; flex: none;
+    background: radial-gradient(120% 120% at 30% 20%, var(--accent), color-mix(in srgb, var(--accent) 55%, #063641));
+    display: grid; place-items: center; color: #fff; box-shadow: var(--shadow);
+  }
+  .brand h1 { font-size: 16px; font-weight: 700; margin: 0; letter-spacing: .1px; }
+  .brand .sub { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 600;
+    padding: 1px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .sysstat { display: flex; align-items: center; gap: 9px; padding: 6px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.ok { background: var(--good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 22%, transparent); }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 22%, transparent); }
+  .dot.crit { background: var(--crit); box-shadow: 0 0 0 4px color-mix(in srgb, var(--crit) 22%, transparent); animation: pulse 1.3s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--crit) 0%, transparent); } }
+  .sysstat .lbl { font-size: 11px; color: var(--muted); }
+  .sysstat .val { font-weight: 600; font-size: 13px; }
+
+  .clock { text-align: end; }
+  .clock .t { font-size: 15px; font-weight: 600; }
+  .clock .d { font-size: 11px; color: var(--muted); }
+
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--ink); cursor: pointer; display: grid; place-items: center;
+  }
+  .icon-btn:hover { border-color: var(--line-strong); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- KPI strip ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+  .kpi { background: var(--panel); padding: 12px clamp(14px,2.4vw,22px); display: flex; flex-direction: column; gap: 3px; }
+  .kpi .k-lbl { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .kpi .k-val { font-size: 24px; font-weight: 600; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; letter-spacing: -.5px; line-height: 1.1; }
+  .kpi .k-val .u { font-size: 12px; color: var(--muted); font-weight: 500; margin-inline-start: 3px; }
+  .kpi .k-sub { font-size: 10.5px; color: var(--faint); }
+  .kpi .k-val.crit { color: var(--crit); }
+  .kpi .k-val.warn { color: var(--warn); }
+
+  /* ---------- main grid ---------- */
+  main { display: grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap: 14px; padding: 14px clamp(14px,3vw,26px); align-items: start; flex: 1; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .panel > .ph { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .ph h2 { margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .ph .hint { font-size: 10.5px; color: var(--faint); font-family: "IBM Plex Mono", monospace; }
+
+  /* ---------- map ---------- */
+  .mapwrap { position: relative; background: var(--map-bg); border-radius: 12px 12px 0 0; }
+  svg.map { display: block; width: 100%; height: auto; }
+  .map-legend { display: flex; flex-wrap: wrap; gap: 12px 18px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+  .lg { display: flex; align-items: center; gap: 6px; }
+  .lg .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .lg .swl { width: 16px; height: 3px; border-radius: 2px; flex: none; }
+
+  .node-hit { cursor: pointer; }
+  .sensor-label { font-family: "IBM Plex Mono", monospace; font-size: 8.5px; fill: var(--ink); }
+  .sensor-val { font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+  .zone-name { font-family: "IBM Plex Sans Arabic", sans-serif; font-size: 12px; font-weight: 700; }
+  .zone-name-sub { font-family: "IBM Plex Mono", monospace; font-size: 9px; }
+
+  /* ---------- DMA list ---------- */
+  .dma { padding: 11px 14px; border-bottom: 1px solid var(--line); cursor: pointer; display: grid; gap: 7px; }
+  .dma:last-child { border-bottom: 0; }
+  .dma:hover { background: var(--panel-2); }
+  .dma.sel { background: var(--accent-soft); }
+  .dma .r1 { display: flex; align-items: center; gap: 8px; }
+  .dma .name { font-weight: 600; font-size: 13px; }
+  .dma .id { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--faint); }
+  .dma .r2 { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .dma .r2 b { color: var(--ink); font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+  .bar { height: 6px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+  .bar > span { display: block; height: 100%; border-radius: 4px; transition: width .5s ease, background .3s; }
+  .pill { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; margin-inline-start: auto; font-family: "IBM Plex Mono", monospace; }
+  .pill.ok { background: var(--good-bg); color: var(--good); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.crit { background: var(--crit-bg); color: var(--crit); }
+
+  /* ---------- alerts ---------- */
+  .alerts { max-height: 340px; overflow-y: auto; }
+  .alert { padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+  .alert:last-child { border-bottom: 0; }
+  .alert .sev { width: 4px; border-radius: 3px; align-self: stretch; }
+  .alert .sev.crit { background: var(--crit); }
+  .alert .sev.warn { background: var(--warn); }
+  .alert .sev.info { background: var(--accent); }
+  .alert .a-t { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .alert .a-m { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .alert .a-meta { font-size: 10px; color: var(--faint); font-family: "IBM Plex Mono", monospace; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge { font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 5px; font-family: "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .3px; }
+  .badge.leak { background: var(--crit-bg); color: var(--crit); }
+  .badge.ot { background: color-mix(in srgb, var(--pressure) 16%, transparent); color: var(--pressure); }
+  .badge.sys { background: var(--warn-bg); color: var(--warn); }
+  .empty { padding: 26px 14px; text-align: center; color: var(--faint); font-size: 12px; }
+
+  /* ---------- OT security ---------- */
+  .ot-assets { display: grid; gap: 1px; background: var(--line); }
+  .asset { background: var(--panel); padding: 9px 14px; display: flex; align-items: center; gap: 10px; }
+  .asset .ico { width: 26px; height: 26px; border-radius: 7px; background: var(--panel-2); display: grid; place-items: center; color: var(--muted); flex: none; }
+  .asset .an { font-size: 12px; font-weight: 600; }
+  .asset .ap { font-size: 10px; color: var(--faint); font-family: "IBM Plex Mono", monospace; }
+  .asset .st { margin-inline-start: auto; font-size: 10.5px; font-family: "IBM Plex Mono", monospace; display: flex; align-items: center; gap: 6px; }
+  .ot-foot { padding: 10px 14px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+
+  /* ---------- detail / telemetry ---------- */
+  .tele { padding: 12px 14px; }
+  .tele .th { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .tele .th .tt { font-weight: 600; }
+  .tele .th .ts { font-size: 10.5px; color: var(--faint); font-family: "IBM Plex Mono", monospace; }
+  .spark { width: 100%; height: 58px; display: block; }
+  .readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .ro { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .ro .rl { font-size: 10px; color: var(--muted); }
+  .ro .rv { font-size: 16px; font-weight: 600; font-family: "IBM Plex Mono", monospace; }
+
+  .controls { display: flex; gap: 8px; padding: 11px 14px; flex-wrap: wrap; align-items: center; }
+  .btn { font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--panel-2); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.06); color: #fff; }
+  .btn.danger:hover { border-color: var(--crit); color: var(--crit); }
+  .ctl-note { font-size: 11px; color: var(--faint); }
+
+  footer { padding: 12px clamp(14px,3vw,26px); color: var(--faint); font-size: 11px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  @media (max-width: 1080px) {
+    main { grid-template-columns: 1fr; }
+    .col.left { order: 2; }
+    .col.center { order: 1; }
+    .col.right { order: 3; }
+  }
+  @media (max-width: 720px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .clock { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; }
+    .flowline { stroke-dasharray: none !important; }
+  }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c3.6 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0c0-3.1 2.4-6.3 6-10.5Z"/></svg>
+      </div>
+      <div>
+        <h1>التوأم الرقمي لشبكة المياه <span class="tag">v2.0</span></h1>
+        <div class="sub">منصة تشغيل SCADA · مناطق قياس DMA · كشف تسرب · طبقة أمن OT</div>
+      </div>
+    </div>
+
+    <div class="sysstat" title="الحالة العامة للشبكة">
+      <span class="dot ok" id="sysDot"></span>
+      <div>
+        <div class="lbl">حالة النظام</div>
+        <div class="val" id="sysLabel">تشغيل طبيعي</div>
+      </div>
+    </div>
+
+    <div class="clock">
+      <div class="t mono" id="clockT">--:--:--</div>
+      <div class="d" id="clockD">—</div>
+    </div>
+
+    <button class="icon-btn" id="themeBtn" title="تبديل السمة" aria-label="تبديل السمة">
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+    </button>
+  </header>
+
+  <section class="kpis" aria-label="مؤشرات الأداء">
+    <div class="kpi">
+      <div class="k-lbl">التدفق الداخل الكلي</div>
+      <div class="k-val num" id="kpiInflow">—<span class="u">لتر/ث</span></div>
+      <div class="k-sub" id="kpiInflowSub">من الخزان الرئيسي</div>
+    </div>
+    <div class="kpi">
+      <div class="k-lbl">متوسط الضغط</div>
+      <div class="k-val num" id="kpiPressure">—<span class="u">بار</span></div>
+      <div class="k-sub" id="kpiPressureSub">عبر ٦ حساسات</div>
+    </div>
+    <div class="kpi">
+      <div class="k-lbl">المياه غير المُحاسَب عليها (NRW)</div>
+      <div class="k-val num" id="kpiNRW">—<span class="u">%</span></div>
+      <div class="k-sub" id="kpiNRWSub">فقد الشبكة الحالي</div>
+    </div>
+    <div class="kpi">
+      <div class="k-lbl">إنذارات نشطة</div>
+      <div class="k-val num" id="kpiAlerts">—</div>
+      <div class="k-sub" id="kpiAlertsSub">تسرب + تشغيل</div>
+    </div>
+    <div class="kpi">
+      <div class="k-lbl">وضع أمن OT</div>
+      <div class="k-val num" id="kpiOT" style="font-size:18px">—</div>
+      <div class="k-sub" id="kpiOTSub">مراقبة Modbus/DNP3</div>
+    </div>
+  </section>
+
+  <main>
+    <!-- LEFT: DMA zones -->
+    <div class="col left">
+      <div class="panel">
+        <div class="ph"><h2>مناطق القياس (DMA)</h2><span class="hint" id="dmaCount">—</span></div>
+        <div id="dmaList"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>القياس عن بُعد</h2><span class="hint" id="teleId">—</span></div>
+        <div class="tele" id="tele"></div>
+      </div>
+    </div>
+
+    <!-- CENTER: map -->
+    <div class="col center">
+      <div class="panel">
+        <div class="ph">
+          <h2>مخطط الشبكة الحي</h2>
+          <span class="hint" id="mapClock">مباشر</span>
+        </div>
+        <div class="mapwrap" id="mapwrap"></div>
+        <div class="map-legend">
+          <span class="lg"><span class="sw" style="background:var(--pressure)"></span> حساس ضغط</span>
+          <span class="lg"><span class="sw" style="background:var(--flow)"></span> عداد تدفق DMA</span>
+          <span class="lg"><span class="sw" style="background:var(--crit)"></span> إنذار تسرب</span>
+          <span class="lg"><span class="swl" style="background:var(--flow)"></span> أنبوب نشط</span>
+          <span class="lg"><span class="sw" style="background:var(--accent);border-radius:50%"></span> مصدر/محطة ضخ</span>
+        </div>
+        <div class="controls">
+          <button class="btn danger" id="injectBtn">⚠ محاكاة تسرب</button>
+          <button class="btn" id="otBtn">🛡 محاكاة حدث OT</button>
+          <button class="btn" id="repairBtn">🛠 إصلاح كل التسربات</button>
+          <button class="btn" id="pauseBtn">⏸ إيقاف مؤقت</button>
+          <span class="ctl-note" id="tickNote">تحديث كل ٢ ثانية</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: alerts + OT -->
+    <div class="col right">
+      <div class="panel">
+        <div class="ph"><h2>سجل الإنذارات</h2><span class="hint" id="alertCount">—</span></div>
+        <div class="alerts" id="alertList"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>طبقة أمن OT</h2><span class="hint">SCADA / PLC / RTU</span></div>
+        <div class="ot-assets" id="otAssets"></div>
+        <div class="ot-foot">
+          <span class="dot ok" id="honeyDot"></span>
+          <span id="honeyText">مصيدة honey‑bit: لا نشاط مشبوه</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span>التوأم الرقمي لشبكة المياه — بيانات محاكاة تشغيلية لأغراض العرض والتدريب.</span>
+    <span class="mono" id="uptime">UPTIME 00:00:00</span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Water Network Digital Twin — simulation engine + rendering
+   Self-contained. All telemetry is simulated for demo/training.
+   ============================================================ */
+
+// ---- theme ----
+(function themeInit(){
+  const btn = document.getElementById('themeBtn');
+  const root = document.documentElement;
+  function cur(){ return root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light'); }
+  btn.addEventListener('click', () => {
+    root.setAttribute('data-theme', cur()==='dark' ? 'light':'dark');
+  });
+})();
+
+// ---- helpers ----
+const rnd = (a,b) => a + Math.random()*(b-a);
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+const fmt = (v,d=0) => Number(v).toLocaleString('en-US',{minimumFractionDigits:d, maximumFractionDigits:d});
+const nowT = () => { const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+
+// ---- network model ----
+// Coordinates in a 1000 x 640 viewBox. Source at top, trunk to pump, 4 DMAs.
+const SRC = { x: 500, y: 46 };
+const PUMP = { x: 500, y: 150 };
+
+const DMAS = [
+  { id:'DMA-01', name:'الحي الشمالي',  x:180, y:300, w:230, h:150, baseInflow:64, baseCons:60, pressN:2 },
+  { id:'DMA-02', name:'وسط المدينة',   x:590, y:300, w:250, h:150, baseInflow:92, baseCons:87, pressN:2 },
+  { id:'DMA-03', name:'المنطقة الصناعية', x:180, y:478, w:230, h:132, baseInflow:118, baseCons:112, pressN:1 },
+  { id:'DMA-04', name:'الحي الجنوبي',  x:590, y:478, w:250, h:132, baseInflow:71, baseCons:67, pressN:1 },
+];
+
+// Build sensors: one flow meter at each DMA inlet + pressure sensors inside
+let SENSORS = [];
+DMAS.forEach((d, i) => {
+  d.inlet = { x: d.x + d.w/2, y: d.y - 6 };
+  d.leak = false;            // active leak?
+  d.leakRate = 0;            // extra L/s lost
+  d.inflow = d.baseInflow;
+  d.consumption = d.baseCons;
+  d.nrw = 0;
+  // flow meter (DMA inlet)
+  SENSORS.push({ id:`FM-${d.id.slice(-2)}`, type:'flow', dma:d.id, x:d.inlet.x, y:d.inlet.y-2,
+                 value:d.baseInflow, unit:'لتر/ث', hist:[] });
+  // pressure sensors
+  for (let p=0; p<d.pressN; p++){
+    const px = d.x + 46 + p*(d.w-92);
+    const py = d.y + d.h - 40;
+    SENSORS.push({ id:`PT-${d.id.slice(-2)}${String.fromCharCode(65+p)}`, type:'pressure', dma:d.id,
+                   x:px, y:py, value:rnd(3.4,4.4), base:rnd(3.6,4.2), unit:'بار', hist:[] });
+  }
+});
+
+// OT assets
+const OT = [
+  { id:'SCADA-SRV-01', role:'خادم SCADA المركزي', proto:'OPC-UA', ip:'10.20.0.10', status:'ok' },
+  { id:'PLC-PUMP-01',  role:'وحدة تحكم محطة الضخ', proto:'Modbus/TCP', ip:'10.20.1.11', status:'ok' },
+  { id:'RTU-DMA-01',   role:'وحدة طرفية DMA-01', proto:'DNP3', ip:'10.20.2.21', status:'ok' },
+  { id:'RTU-DMA-02',   role:'وحدة طرفية DMA-02', proto:'DNP3', ip:'10.20.2.22', status:'ok' },
+  { id:'RTU-DMA-03',   role:'وحدة طرفية DMA-03', proto:'DNP3', ip:'10.20.2.23', status:'ok' },
+];
+
+// ---- alerts ----
+let alerts = [];
+let alertSeq = 1;
+function addAlert(kind, sev, title, msg, meta){
+  alerts.unshift({ n:alertSeq++, kind, sev, title, msg, meta, t:nowT(), active:true });
+  if (alerts.length > 60) alerts.length = 60;
+  renderAlerts();
+}
+function resolveAlertsFor(pred){
+  alerts.forEach(a => { if (a.active && pred(a)) a.active = false; });
+}
+
+// ---- state ----
+let selected = DMAS[1].id;   // default select وسط المدينة
+let paused = false;
+let startTs = Date.now();
+let mnfMode = false;   // minimum night flow highlight (cosmetic)
+
+// ============================================================
+//  RENDER: MAP
+// ============================================================
+const SVGNS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, kids){
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  (kids||[]).forEach(c => n.appendChild(c));
+  return n;
+}
+function pipe(x1,y1,x2,y2, id){
+  // routed as an "L" (vertical then horizontal) for schematic look
+  return `M ${x1} ${y1} L ${x1} ${(y1+y2)/2} L ${x2} ${(y1+y2)/2} L ${x2} ${y2}`;
+}
+
+function buildMap(){
+  const wrap = document.getElementById('mapwrap');
+  wrap.innerHTML = '';
+  const svg = el('svg', { class:'map', viewBox:'0 0 1000 640', role:'img',
+                          'aria-label':'مخطط شبكة توزيع المياه' });
+
+  // grid
+  const defs = el('defs');
+  const grid = el('pattern', { id:'grid', width:'40', height:'40', patternUnits:'userSpaceOnUse' });
+  grid.appendChild(el('path', { d:'M40 0 L0 0 0 40', fill:'none', stroke:'var(--map-grid)', 'stroke-width':'1' }));
+  defs.appendChild(grid);
+  svg.appendChild(defs);
+  svg.appendChild(el('rect', { x:0, y:0, width:1000, height:640, fill:'url(#grid)' }));
+
+  // ---- pipes (draw first, under zones) ----
+  const pipeG = el('g');
+  // source -> pump (trunk)
+  pipeG.appendChild(el('path', { d:`M ${SRC.x} ${SRC.y} L ${PUMP.x} ${PUMP.y}`, fill:'none', stroke:'var(--pipe)', 'stroke-width':'9', 'stroke-linecap':'round' }));
+  pipeG.appendChild(el('path', { d:`M ${SRC.x} ${SRC.y} L ${PUMP.x} ${PUMP.y}`, class:'flowline', fill:'none', stroke:'var(--flow)', 'stroke-width':'3.5', 'stroke-linecap':'round', 'stroke-dasharray':'2 12', 'data-trunk':'1' }));
+  // pump -> each DMA inlet
+  DMAS.forEach(d => {
+    const dd = pipe(PUMP.x, PUMP.y, d.inlet.x, d.inlet.y);
+    pipeG.appendChild(el('path', { d:dd, fill:'none', stroke:'var(--pipe)', 'stroke-width':'7', 'stroke-linecap':'round', 'stroke-linejoin':'round' }));
+    pipeG.appendChild(el('path', { d:dd, class:'flowline', fill:'none', stroke:'var(--flow)', 'stroke-width':'3', 'stroke-linecap':'round', 'stroke-dasharray':'2 12', 'data-dma':d.id }));
+  });
+  svg.appendChild(pipeG);
+
+  // ---- DMA zones ----
+  DMAS.forEach(d => {
+    const g = el('g', { id:`zone-${d.id}` });
+    g.appendChild(el('rect', { x:d.x, y:d.y, width:d.w, height:d.h, rx:14,
+      fill:'var(--zone)', stroke:'var(--zone-line)', 'stroke-width':'1.5', 'stroke-dasharray':'6 5', class:'node-hit', 'data-dma':d.id }));
+    const nm = el('text', { x:d.x+14, y:d.y+24, class:'zone-name', fill:'var(--ink)' });
+    nm.textContent = d.name;
+    g.appendChild(nm);
+    const sub = el('text', { x:d.x+14, y:d.y+40, class:'zone-name-sub', fill:'var(--faint)' });
+    sub.textContent = d.id;
+    g.appendChild(sub);
+    // leak marker (hidden until leak)
+    const lk = el('g', { id:`leak-${d.id}`, opacity:'0' });
+    const lx = d.x + d.w - 40, ly = d.y + 40;
+    lk.appendChild(el('circle', { cx:lx, cy:ly, r:'16', fill:'none', stroke:'var(--crit)', 'stroke-width':'2', class:'leak-ring' }));
+    lk.appendChild(el('circle', { cx:lx, cy:ly, r:'7', fill:'var(--crit)' }));
+    const dropTxt = el('text', { x:lx, y:ly+4, 'text-anchor':'middle', fill:'#fff', 'font-size':'10', 'font-weight':'700', 'font-family':'IBM Plex Mono, monospace' });
+    dropTxt.textContent='!';
+    lk.appendChild(dropTxt);
+    g.appendChild(lk);
+    svg.appendChild(g);
+  });
+
+  // ---- source + pump nodes ----
+  const srcG = el('g');
+  srcG.appendChild(el('circle', { cx:SRC.x, cy:SRC.y, r:'20', fill:'var(--accent)', stroke:'var(--map-bg)', 'stroke-width':'3' }));
+  const srcIco = el('text', { x:SRC.x, y:SRC.y+5, 'text-anchor':'middle', fill:'#fff', 'font-size':'15' }); srcIco.textContent='◉';
+  srcG.appendChild(srcIco);
+  const srcL = el('text', { x:SRC.x, y:SRC.y-28, 'text-anchor':'middle', fill:'var(--muted)', 'font-size':'11', 'font-weight':'700', 'font-family':'IBM Plex Sans Arabic' }); srcL.textContent='الخزان الرئيسي';
+  srcG.appendChild(srcL);
+  svg.appendChild(srcG);
+
+  const pumpG = el('g');
+  pumpG.appendChild(el('rect', { x:PUMP.x-20, y:PUMP.y-16, width:40, height:32, rx:8, fill:'var(--accent)', stroke:'var(--map-bg)', 'stroke-width':'3' }));
+  const pumpIco = el('text', { x:PUMP.x, y:PUMP.y+5, 'text-anchor':'middle', fill:'#fff', 'font-size':'14' }); pumpIco.textContent='⚙';
+  pumpG.appendChild(pumpIco);
+  const pumpL = el('text', { x:PUMP.x+30, y:PUMP.y+4, fill:'var(--muted)', 'font-size':'11', 'font-weight':'600', 'font-family':'IBM Plex Sans Arabic' }); pumpL.textContent='محطة ضخ PS‑01';
+  pumpG.appendChild(pumpL);
+  svg.appendChild(pumpG);
+
+  // ---- sensors ----
+  SENSORS.forEach(s => {
+    const g = el('g', { id:`sensor-${s.id}`, class:'node-hit', 'data-dma':s.dma });
+    const color = s.type==='pressure' ? 'var(--pressure)' : 'var(--flow)';
+    if (s.type==='flow'){
+      g.appendChild(el('rect', { x:s.x-13, y:s.y-9, width:26, height:18, rx:5, fill:color, stroke:'var(--map-bg)', 'stroke-width':'2' }));
+    } else {
+      g.appendChild(el('circle', { cx:s.x, cy:s.y, r:'10', fill:color, stroke:'var(--map-bg)', 'stroke-width':'2' }));
+    }
+    const lbl = el('text', { x:s.x, y:s.y-14, 'text-anchor':'middle', class:'sensor-label', fill:'var(--muted)' });
+    lbl.textContent = s.id;
+    g.appendChild(lbl);
+    const val = el('text', { x:s.x, y:s.type==='flow'? s.y+4 : s.y+3, 'text-anchor':'middle', class:'sensor-val',
+                             fill:'#fff', 'font-size': s.type==='flow'?'8.5':'8' , id:`sval-${s.id}` });
+    val.textContent = '';
+    g.appendChild(val);
+    // reading below
+    const rd = el('text', { x:s.x, y:s.y+24, 'text-anchor':'middle', class:'sensor-label', fill:'var(--ink)', 'font-weight':'600', id:`sread-${s.id}` });
+    g.appendChild(rd);
+    svg.appendChild(g);
+  });
+
+  wrap.appendChild(svg);
+
+  // interaction: click zone / sensor selects DMA
+  wrap.querySelectorAll('.node-hit').forEach(n => {
+    n.addEventListener('click', () => { const dma = n.getAttribute('data-dma'); if (dma){ selected = dma; renderDMAs(); renderTele(); highlightZone(); } });
+  });
+  highlightZone();
+}
+
+function highlightZone(){
+  DMAS.forEach(d => {
+    const z = document.querySelector(`#zone-${d.id} rect`);
+    if (!z) return;
+    if (d.id === selected){ z.setAttribute('stroke','var(--accent)'); z.setAttribute('stroke-width','2.5'); z.setAttribute('stroke-dasharray','none'); }
+    else { z.setAttribute('stroke','var(--zone-line)'); z.setAttribute('stroke-width','1.5'); z.setAttribute('stroke-dasharray','6 5'); }
+  });
+}
+
+// ============================================================
+//  SIMULATION TICK
+// ============================================================
+function diurnal(){
+  // demand multiplier by hour (morning + evening peaks). Night = MNF.
+  const h = new Date().getHours() + new Date().getMinutes()/60;
+  const m = 0.55 + 0.45*Math.max(Math.exp(-Math.pow((h-8)/2.2,2)), Math.exp(-Math.pow((h-20)/2.6,2)));
+  return clamp(m, 0.45, 1.15);
+}
+
+function tick(){
+  const dm = diurnal();
+  mnfMode = (new Date().getHours() >= 2 && new Date().getHours() < 5);
+
+  let totalIn = 0, pressSum = 0, pressN = 0, totalLoss = 0, totalMetered = 0;
+
+  DMAS.forEach(d => {
+    // legitimate consumption follows diurnal curve
+    d.consumption = d.baseCons * dm * rnd(0.97, 1.03);
+    // inflow = consumption + real losses (leak) + background loss
+    const bgLoss = d.baseInflow*0.03;
+    d.leakRate = d.leak ? clamp(d.leakRate + rnd(-1,2.2), 8, d.baseInflow*0.6) : Math.max(0, d.leakRate - 6);
+    d.inflow = d.consumption + bgLoss + d.leakRate;
+    d.nrw = clamp(((d.inflow - d.consumption) / d.inflow) * 100, 0, 70);
+
+    totalIn += d.inflow;
+    totalMetered += d.consumption;
+    totalLoss += (d.inflow - d.consumption);
+
+    // update flow meter sensor
+    const fm = SENSORS.find(s => s.type==='flow' && s.dma===d.id);
+    fm.value = d.inflow;
+    pushHist(fm, d.inflow);
+
+    // pressures drop when leaking
+    const drop = d.leak ? clamp(d.leakRate/28, 0.2, 1.6) : 0;
+    SENSORS.filter(s => s.type==='pressure' && s.dma===d.id).forEach(s => {
+      s.value = clamp(s.base * dm*0.15 + s.base*0.85 - drop + rnd(-0.06,0.06), 0.6, 6);
+      pushHist(s, s.value);
+      pressSum += s.value; pressN++;
+    });
+  });
+
+  const nrw = (totalLoss/totalIn)*100;
+
+  // ---- leak auto-detection (mass balance + MNF logic) ----
+  DMAS.forEach(d => {
+    const lossPct = ((d.inflow - d.consumption)/d.inflow)*100;
+    if (lossPct > 22 && !d._flagged){
+      d._flagged = true;
+      const sev = lossPct > 38 ? 'crit' : 'warn';
+      addAlert('leak', sev, `تسرب مُحتمل — ${d.name}`,
+        `اختلال الموازنة الكتلية: الفقد ${lossPct.toFixed(0)}٪ من الداخل (${d.leakRate.toFixed(0)} لتر/ث). انخفاض ضغط مصاحب.`,
+        [d.id, `NRW ${lossPct.toFixed(0)}%`]);
+    }
+    if (lossPct < 12 && d._flagged){ d._flagged = false; resolveAlertsFor(a => a.kind==='leak' && a.meta && a.meta[0]===d.id); }
+  });
+
+  // update KPIs
+  const avgP = pressN ? pressSum/pressN : 0;
+  setKpi('kpiInflow', fmt(totalIn,0));
+  setKpi('kpiPressure', fmt(avgP,2));
+  const nrwEl = document.getElementById('kpiNRW');
+  setKpi('kpiNRW', fmt(nrw,1));
+  nrwEl.classList.toggle('crit', nrw>18); nrwEl.classList.toggle('warn', nrw>12 && nrw<=18);
+  const activeAlerts = alerts.filter(a=>a.active).length;
+  const aEl = document.getElementById('kpiAlerts'); setKpi('kpiAlerts', String(activeAlerts));
+  aEl.classList.toggle('crit', alerts.some(a=>a.active && a.sev==='crit'));
+  aEl.classList.toggle('warn', !alerts.some(a=>a.active&&a.sev==='crit') && activeAlerts>0);
+
+  document.getElementById('kpiInflowSub').textContent = mnfMode ? 'وضع التدفق الليلي الأدنى (MNF)' : 'من الخزان الرئيسي';
+
+  updateSystemStatus(nrw, activeAlerts);
+  renderSensorsLive();
+  renderDMAs();
+  renderTele();
+}
+
+function pushHist(s, v){ s.hist.push(v); if (s.hist.length>48) s.hist.shift(); }
+function setKpi(id, txt){ const e=document.getElementById(id); e.childNodes[0].nodeValue = txt; }
+
+function updateSystemStatus(nrw, active){
+  const dot = document.getElementById('sysDot'), lab = document.getElementById('sysLabel');
+  const crit = alerts.some(a=>a.active && a.sev==='crit');
+  const otBreach = OT.some(o=>o.status==='crit');
+  dot.className = 'dot ' + (crit||otBreach ? 'crit' : (active>0||nrw>14 ? 'warn':'ok'));
+  lab.textContent = crit ? 'إنذار حرِج — تسرب مؤكد' : otBreach ? 'اختراق أمني OT' : (active>0 ? 'تحذيرات نشطة' : 'تشغيل طبيعي');
+}
+
+// ============================================================
+//  RENDER: sensors live values
+// ============================================================
+function renderSensorsLive(){
+  SENSORS.forEach(s => {
+    const read = document.getElementById(`sread-${s.id}`);
+    if (read) read.textContent = s.type==='flow' ? `${fmt(s.value,0)} ل/ث` : `${fmt(s.value,1)} بار`;
+    // color pressure low
+    const grp = document.getElementById(`sensor-${s.id}`);
+    if (grp && s.type==='pressure'){
+      const c = grp.querySelector('circle');
+      if (c) c.setAttribute('fill', s.value<2.2 ? 'var(--crit)' : s.value<3 ? 'var(--warn)' : 'var(--pressure)');
+    }
+  });
+  // leak markers + pipe emphasis
+  DMAS.forEach(d => {
+    const lk = document.getElementById(`leak-${d.id}`);
+    if (lk) lk.setAttribute('opacity', d._flagged ? '1':'0');
+    if (lk && d._flagged){
+      const ring = lk.querySelector('.leak-ring');
+      const r = 12 + (Math.sin(Date.now()/300)+1)*6;
+      ring.setAttribute('r', r.toFixed(1));
+      ring.setAttribute('opacity', (1 - (r-12)/12).toFixed(2));
+    }
+    const fp = document.querySelector(`path.flowline[data-dma="${d.id}"]`);
+    if (fp){ fp.setAttribute('stroke', d._flagged ? 'var(--crit)' : 'var(--flow)'); fp.setAttribute('stroke-width', d._flagged?'4':'3'); }
+  });
+}
+
+// animate flow dashes
+let dashOff = 0;
+function animateFlow(){
+  dashOff -= 0.9;
+  document.querySelectorAll('.flowline').forEach(p => p.setAttribute('stroke-dashoffset', dashOff));
+  requestAnimationFrame(animateFlow);
+}
+
+// ============================================================
+//  RENDER: DMA list
+// ============================================================
+function renderDMAs(){
+  const box = document.getElementById('dmaList');
+  document.getElementById('dmaCount').textContent = `${DMAS.length} مناطق`;
+  box.innerHTML = '';
+  DMAS.forEach(d => {
+    const lossPct = ((d.inflow - d.consumption)/d.inflow)*100 || 0;
+    const cls = lossPct>22 ? 'crit' : lossPct>12 ? 'warn' : 'ok';
+    const div = document.createElement('div');
+    div.className = 'dma' + (d.id===selected?' sel':'');
+    div.innerHTML = `
+      <div class="r1">
+        <span class="name">${d.name}</span>
+        <span class="id">${d.id}</span>
+        <span class="pill ${cls}">${cls==='crit'?'تسرب':cls==='warn'?'مراقبة':'سليم'}</span>
+      </div>
+      <div class="r2"><span>داخل: <b>${fmt(d.inflow,0)}</b> ل/ث</span><span>استهلاك: <b>${fmt(d.consumption,0)}</b></span><span>NRW: <b>${fmt(lossPct,0)}%</b></span></div>
+      <div class="bar"><span style="width:${clamp(lossPct*2.2,4,100)}%;background:${cls==='crit'?'var(--crit)':cls==='warn'?'var(--warn)':'var(--good)'}"></span></div>`;
+    div.addEventListener('click', () => { selected=d.id; renderDMAs(); renderTele(); highlightZone(); });
+    box.appendChild(div);
+  });
+}
+
+// ============================================================
+//  RENDER: telemetry / sparkline for selected DMA
+// ============================================================
+function sparkPath(hist, w, h, min, max){
+  if (hist.length<2) return '';
+  const n = hist.length; const dx = w/(n-1);
+  const sc = v => h - ((v-min)/((max-min)||1))*h;
+  return hist.map((v,i)=> (i? 'L':'M') + (i*dx).toFixed(1) + ' ' + sc(v).toFixed(1)).join(' ');
+}
+function renderTele(){
+  const d = DMAS.find(x=>x.id===selected);
+  document.getElementById('teleId').textContent = d.id;
+  const fm = SENSORS.find(s=>s.type==='flow' && s.dma===d.id);
+  const pts = SENSORS.filter(s=>s.type==='pressure' && s.dma===d.id);
+  const p0 = pts[0];
+  const box = document.getElementById('tele');
+  const flowHist = fm.hist, presHist = p0? p0.hist : [];
+  const fmin = Math.min(...flowHist,0), fmax = Math.max(...flowHist, d.baseInflow);
+  const pmin = 0, pmax = 6;
+  const lossPct = ((d.inflow-d.consumption)/d.inflow)*100 || 0;
+  const flowColor = d._flagged ? 'var(--crit)':'var(--flow)';
+  box.innerHTML = `
+    <div class="th"><span class="tt">${d.name}</span><span class="ts">${fm.id}</span></div>
+    <svg class="spark" viewBox="0 0 260 58" preserveAspectRatio="none" aria-label="اتجاه التدفق">
+      <line x1="0" y1="57" x2="260" y2="57" stroke="var(--line)" stroke-width="1"/>
+      <path d="${sparkPath(flowHist,260,50,fmin,fmax)}" fill="none" stroke="${flowColor}" stroke-width="2" transform="translate(0,4)"/>
+    </svg>
+    <div class="th" style="margin-top:8px"><span class="ts">الضغط ${p0?p0.id:''}</span><span class="ts">بار</span></div>
+    <svg class="spark" viewBox="0 0 260 58" preserveAspectRatio="none" aria-label="اتجاه الضغط">
+      <line x1="0" y1="${58-(3/6*50)-4}" x2="260" y2="${58-(3/6*50)-4}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="3 4" opacity="0.5"/>
+      <path d="${sparkPath(presHist,260,50,pmin,pmax)}" fill="none" stroke="var(--pressure)" stroke-width="2" transform="translate(0,4)"/>
+    </svg>
+    <div class="readouts">
+      <div class="ro"><div class="rl">التدفق الداخل</div><div class="rv">${fmt(d.inflow,0)} <span style="font-size:11px;color:var(--muted)">ل/ث</span></div></div>
+      <div class="ro"><div class="rl">فقد (NRW)</div><div class="rv" style="color:${lossPct>22?'var(--crit)':lossPct>12?'var(--warn)':'var(--ink)'}">${fmt(lossPct,0)} <span style="font-size:11px;color:var(--muted)">%</span></div></div>
+      <div class="ro"><div class="rl">متوسط الضغط</div><div class="rv">${fmt(pts.reduce((a,s)=>a+s.value,0)/pts.length,1)} <span style="font-size:11px;color:var(--muted)">بار</span></div></div>
+      <div class="ro"><div class="rl">الحالة</div><div class="rv" style="font-size:13px;color:${d._flagged?'var(--crit)':'var(--good)'}">${d._flagged?'تسرب مؤكد':'مستقر'}</div></div>
+    </div>`;
+}
+
+// ============================================================
+//  RENDER: alerts
+// ============================================================
+function renderAlerts(){
+  const box = document.getElementById('alertList');
+  const active = alerts.filter(a=>a.active);
+  document.getElementById('alertCount').textContent = `${active.length} نشط / ${alerts.length}`;
+  if (!alerts.length){ box.innerHTML = '<div class="empty">لا توجد إنذارات — الشبكة تعمل ضمن الحدود الطبيعية.</div>'; return; }
+  box.innerHTML = '';
+  alerts.slice(0,24).forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'alert';
+    div.style.opacity = a.active ? '1':'0.5';
+    const badge = a.kind==='leak'?'leak':a.kind==='ot'?'ot':'sys';
+    const badgeTxt = a.kind==='leak'?'تسرب':a.kind==='ot'?'أمن OT':'تشغيل';
+    div.innerHTML = `
+      <div class="sev ${a.sev}"></div>
+      <div>
+        <div class="a-t">${a.title} <span class="badge ${badge}">${badgeTxt}</span> ${a.active?'':'<span style="font-size:10px;color:var(--faint)">(مُغلق)</span>'}</div>
+        <div class="a-m">${a.msg}</div>
+        <div class="a-meta"><span>#${String(a.n).padStart(3,'0')}</span><span>${a.t}</span>${(a.meta||[]).map(m=>`<span>${m}</span>`).join('')}</div>
+      </div>`;
+    box.appendChild(div);
+  });
+}
+
+// ============================================================
+//  RENDER: OT security assets
+// ============================================================
+function renderOT(){
+  const box = document.getElementById('otAssets');
+  box.innerHTML = '';
+  OT.forEach(o => {
+    const st = o.status;
+    const color = st==='crit'?'var(--crit)':st==='warn'?'var(--warn)':'var(--good)';
+    const txt = st==='crit'?'اختراق':st==='warn'?'شاذ':'متصل';
+    const div = document.createElement('div');
+    div.className = 'asset';
+    div.innerHTML = `
+      <div class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M9 4v16"/></svg></div>
+      <div>
+        <div class="an">${o.id}</div>
+        <div class="ap">${o.role} · ${o.proto} · ${o.ip}</div>
+      </div>
+      <div class="st" style="color:${color}"><span class="dot ${st==='crit'?'crit':st==='warn'?'warn':'ok'}"></span>${txt}</div>`;
+    box.appendChild(div);
+  });
+  // OT KPI
+  const breach = OT.some(o=>o.status==='crit'), anomaly = OT.some(o=>o.status==='warn');
+  const k = document.getElementById('kpiOT');
+  k.textContent = breach ? 'اختراق' : anomaly ? 'نشاط شاذ' : 'مؤمّن';
+  k.classList.toggle('crit', breach); k.classList.toggle('warn', anomaly && !breach);
+}
+
+// ============================================================
+//  EVENT INJECTORS (controls)
+// ============================================================
+document.getElementById('injectBtn').addEventListener('click', () => {
+  const candidates = DMAS.filter(d=>!d.leak);
+  const d = candidates.length ? candidates[Math.floor(Math.random()*candidates.length)] : DMAS[Math.floor(Math.random()*DMAS.length)];
+  d.leak = true; d.leakRate = Math.max(d.leakRate, rnd(14,26));
+  addAlert('leak','warn', `بدء حدث تسرب — ${d.name}`, `تم حقن تسرب محاكى عند ${d.id}. سيرتفع الفقد ويظهر انخفاض الضغط تدريجياً.`, [d.id,'محاكاة']);
+});
+document.getElementById('repairBtn').addEventListener('click', () => {
+  let any=false;
+  DMAS.forEach(d => { if (d.leak){ d.leak=false; any=true; } });
+  if (any) addAlert('sys','info','تم إغلاق التسربات', 'أُرسل أمر إصلاح لجميع المناطق؛ ستعود الموازنة الكتلية تدريجياً.', ['تشغيل']);
+});
+document.getElementById('otBtn').addEventListener('click', () => {
+  const scenarios = [
+    () => { const o = OT.find(x=>x.id==='PLC-PUMP-01'); o.status='warn';
+      addAlert('ot','warn','محاولة كتابة غير مصرّح بها', `طلب Modbus WRITE إلى سجلّات ${o.id} من مضيف غير معروف (10.20.9.66). حُظر عند الجدار الناري.`, [o.id,'Modbus/TCP','FC=16']); },
+    () => { document.getElementById('honeyDot').className='dot warn';
+      document.getElementById('honeyText').textContent='مصيدة honey‑bit: تفاعل مشبوه (مسح منافذ)';
+      addAlert('ot','warn','تنبيه من مصيدة honey‑bit', 'رُصد مسح منافذ ومحاولة اتصال بخدمة SCADA‑وهمية. أُرسل الحدث إلى Wazuh (قاعدة 100833).', ['honey-bit','SIEM']); },
+    () => { const o = OT.find(x=>x.id==='RTU-DMA-02'); o.status='crit';
+      addAlert('ot','crit','اختراق مؤكد — RTU', `فقدان سلامة على ${o.id}: تعديل قيم عتبة الضغط عبر DNP3 خارج نطاق الصيانة. عزل الوحدة موصى به.`, [o.id,'DNP3','حرِج']); },
+  ];
+  scenarios[Math.floor(Math.random()*scenarios.length)]();
+  renderOT();
+});
+document.getElementById('pauseBtn').addEventListener('click', (e) => {
+  paused = !paused;
+  e.target.textContent = paused ? '▶ استئناف' : '⏸ إيقاف مؤقت';
+  document.getElementById('tickNote').textContent = paused ? 'المحاكاة متوقفة' : 'تحديث كل ٢ ثانية';
+  document.getElementById('mapClock').textContent = paused ? 'متوقف' : 'مباشر';
+});
+
+// ============================================================
+//  CLOCK + LOOP
+// ============================================================
+function clockLoop(){
+  const d = new Date();
+  document.getElementById('clockT').textContent = nowT();
+  document.getElementById('clockD').textContent = d.toLocaleDateString('ar', { weekday:'long', day:'numeric', month:'long' });
+  const up = Math.floor((Date.now()-startTs)/1000);
+  const p=n=>String(n).padStart(2,'0');
+  document.getElementById('uptime').textContent = `UPTIME ${p(Math.floor(up/3600))}:${p(Math.floor(up/60)%60)}:${p(up%60)}`;
+}
+
+// ---- init ----
+buildMap();
+renderOT();
+renderAlerts();
+// seed a couple history points so sparklines aren't empty at rest
+for (let i=0;i<12;i++) tick();
+renderDMAs();
+renderTele();
+clockLoop();
+animateFlow();
+
+setInterval(() => { if (!paused) tick(); }, 2000);
+setInterval(clockLoop, 1000);
+</script>

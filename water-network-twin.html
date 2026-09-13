@@ -1,5 +1,6 @@
-<title>التوأم الرقمي لشبكة المياه</title>
-<meta name="description" content="لوحة تشغيل SCADA لشبكة توزيع مياه: مناطق قياس DMA، حساسات ضغط وتدفق، كشف تسرب، وطبقة أمن OT.">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>نبض NABD</title>
+<meta name="description" content="نبض — توأم رقمي سيبراني-فيزيائي لشبكة مياه: يكتشف التسرب، يحدّد المقطع، يتحقّق أنه حقيقي لا حساساً مزيفاً، ثم يُصدر أمر العمل.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -31,6 +32,8 @@
     --pipe: #a9c1cb;
     --zone: rgba(14,143,168,.06);
     --zone-line: rgba(14,143,168,.35);
+    --trust: #6d47b8;       /* trust layer / cyber verdicts */
+    --trust-bg: #ebe4f8;
   }
   :root:not([data-theme="light"]) {
     @media (prefers-color-scheme: dark) {
@@ -59,6 +62,8 @@
       --pipe: #2d4652;
       --zone: rgba(43,188,214,.05);
       --zone-line: rgba(43,188,214,.32);
+      --trust: #b39af0;
+      --trust-bg: #241a3a;
     }
   }
   :root[data-theme="dark"] {
@@ -87,6 +92,8 @@
     --pipe: #2d4652;
     --zone: rgba(43,188,214,.05);
     --zone-line: rgba(43,188,214,.32);
+    --trust: #b39af0;
+    --trust-bg: #241a3a;
   }
 
   * { box-sizing: border-box; }
@@ -284,6 +291,55 @@
   .twin-controls input[type=range] { accent-color: var(--accent); width: 120px; }
   .twin-controls .rngval { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--ink); min-width: 14px; text-align: center; }
   .scn { font-size: 11px; color: var(--faint); margin-inline-start: auto; }
+
+  /* ---------- NABD: trust layer, pinpoint, work orders, recovered water ---------- */
+  .recov { text-align: end; padding: 6px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+  .recov .rv { font-size: 17px; font-weight: 600; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; color: var(--good); line-height: 1.1; }
+  .recov .rl { font-size: 10.5px; color: var(--muted); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); padding: 12px 14px 6px; }
+  .step { display: grid; justify-items: center; gap: 5px; position: relative; font-size: 10.5px; color: var(--faint); text-align: center; }
+  .step::before { content: ""; position: absolute; top: 11px; inset-inline-start: -50%; width: 100%; height: 2px; background: var(--line); z-index: 0; transition: background .3s; }
+  .step:first-child::before { display: none; }
+  .step .dotn { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); background: var(--panel); display: grid; place-items: center; font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 600; position: relative; z-index: 1; transition: all .3s; }
+  .step.active { color: var(--ink); font-weight: 600; }
+  .step.active .dotn { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .step.done { color: var(--good); }
+  .step.done .dotn { background: var(--good); border-color: var(--good); color: #fff; }
+  .step.done::before, .step.active::before { background: var(--good); }
+  .step.blocked { color: var(--trust); font-weight: 600; }
+  .step.blocked .dotn { background: var(--trust); border-color: var(--trust); color: #fff; }
+  .step.blocked::before { background: var(--trust); }
+  .verdict { margin: 8px 14px 14px; border-radius: 10px; padding: 11px 13px; border: 1px solid var(--line); background: var(--panel-2); font-size: 12px; }
+  .verdict.idle { color: var(--faint); text-align: center; line-height: 1.6; }
+  .verdict.real { border-color: color-mix(in srgb, var(--good) 45%, transparent); background: var(--good-bg); }
+  .verdict.spoof { border-color: color-mix(in srgb, var(--trust) 45%, transparent); background: var(--trust-bg); }
+  .verdict .vt { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .verdict.real .vt { color: var(--good); }
+  .verdict.spoof .vt { color: var(--trust); }
+  .verdict .vz { margin-inline-start: auto; font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--muted); font-weight: 500; }
+  .chk { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; padding: 3px 0; color: var(--muted); }
+  .chk b { color: var(--ink); font-weight: 600; }
+  .chk .m { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--faint); }
+  .chk .ok { color: var(--good); font-weight: 700; }
+  .chk .no { color: var(--trust); font-weight: 700; }
+  .chk .pend { color: var(--faint); }
+  .verdict .decision { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-weight: 600; line-height: 1.55; }
+  .verdict.spoof .decision { color: var(--trust); }
+  .verdict.real .decision { color: var(--good); }
+  .wo { padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; font-size: 11.5px; }
+  .wo:last-child { border-bottom: 0; }
+  .wo .w1 { display: flex; align-items: center; gap: 8px; }
+  .wo .wid { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--accent); font-size: 11px; }
+  .wo .wz { font-weight: 600; }
+  .wo .w2 { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); }
+  .wo .w2 b { color: var(--ink); font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+  .pill.trust { background: var(--trust-bg); color: var(--trust); }
+  .btn.scn { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--accent); }
+  .btn.scn:hover { background: var(--accent); color: #fff; }
+  .btn.scn.spoof { background: var(--trust-bg); border-color: color-mix(in srgb, var(--trust) 40%, transparent); color: var(--trust); }
+  .btn.scn.spoof:hover { background: var(--trust); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .pin-lbl { font-family: "IBM Plex Mono", monospace; font-size: 9px; font-weight: 700; }
 </style>
 
 <div class="app">
@@ -293,9 +349,14 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c3.6 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0c0-3.1 2.4-6.3 6-10.5Z"/></svg>
       </div>
       <div>
-        <h1>التوأم الرقمي لشبكة المياه <span class="tag">v2.0</span></h1>
-        <div class="sub">منصة تشغيل SCADA · مناطق قياس DMA · كشف تسرب · طبقة أمن OT</div>
+        <h1>نبض <span class="tag">NABD</span></h1>
+        <div class="sub">ذكاء مياه موثوق · يكتشف · يتحقّق · يُحدّد الموقع · يوصي · يُرسل</div>
       </div>
+    </div>
+
+    <div class="recov" title="مياه لم تعد تُفقد منذ إغلاق التسربات التي أكدتها طبقة الثقة">
+      <div class="rv"><span id="recovVal">0</span> <span style="font-size:11px;color:var(--muted);font-weight:500">لتر</span></div>
+      <div class="rl">مياه مُستردّة منذ الإصلاح</div>
     </div>
 
     <div class="sysstat" title="الحالة العامة للشبكة">
@@ -405,6 +466,8 @@
           <span class="lg"><span class="sw" style="background:var(--accent);border-radius:50%"></span> مصدر/محطة ضخ</span>
         </div>
         <div class="controls">
+          <button class="btn scn" id="scnLeakBtn">▶ سيناريو: تسرب حقيقي</button>
+          <button class="btn scn spoof" id="scnSpoofBtn">▶ سيناريو: حساس مزيف</button>
           <button class="btn danger" id="injectBtn">⚠ محاكاة تسرب</button>
           <button class="btn" id="otBtn">🛡 محاكاة حدث OT</button>
           <button class="btn" id="repairBtn">🛠 إصلاح كل التسربات</button>
@@ -414,8 +477,22 @@
       </div>
     </div>
 
-    <!-- RIGHT: alerts + OT -->
+    <!-- RIGHT: trust layer + work orders + alerts + OT -->
     <div class="col right">
+      <div class="panel" id="trustPanel">
+        <div class="ph"><h2>طبقة الثقة</h2><span class="hint" id="trustZone">بانتظار حدث</span></div>
+        <div class="steps" id="steps" aria-label="مسار الاستجابة">
+          <div class="step" data-s="0"><span class="dotn">1</span><span>كشف</span></div>
+          <div class="step" data-s="1"><span class="dotn">2</span><span>تحديد الموقع</span></div>
+          <div class="step" data-s="2"><span class="dotn">3</span><span>تحقّق</span></div>
+          <div class="step" data-s="3"><span class="dotn">4</span><span>إرسال</span></div>
+        </div>
+        <div class="verdict idle" id="verdict">لا يُرسَل فريق ميداني إلا بعد أن تثبت طبقة الثقة أن الحدث فيزيائي حقيقي — لا عطل حساس ولا تلاعباً سيبرانياً.</div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>أوامر العمل</h2><span class="hint" id="woCount">0</span></div>
+        <div id="woList"><div class="empty">لا أوامر عمل — لم يُؤكَّد أي تسرب بعد.</div></div>
+      </div>
       <div class="panel">
         <div class="ph"><h2>سجل الإنذارات</h2><span class="hint" id="alertCount">—</span></div>
         <div class="alerts" id="alertList"></div>
@@ -432,7 +509,7 @@
   </main>
 
   <footer>
-    <span>التوأم الرقمي لشبكة المياه — بيانات محاكاة تشغيلية لأغراض العرض والتدريب.</span>
+    <span>نبض NABD — طبقة ذكاء فوق SCADA القائم، قراءة فقط عبر Historian/OPC-UA، بلا أي تحكم آلي في المرحلة الأولى. قواعد وخطوط أساس إحصائية الآن؛ تعلم آلي بعد جمع بيانات حقيقية. بيانات محاكاة لأغراض العرض.</span>
     <span class="mono" id="uptime">UPTIME 00:00:00</span>
   </footer>
 </div>
@@ -460,6 +537,9 @@ const rnd = (a,b) => a + Math.random()*(b-a);
 const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
 const fmt = (v,d=0) => Number(v).toLocaleString('en-US',{minimumFractionDigits:d, maximumFractionDigits:d});
 const nowT = () => { const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+// NABD: the operator sees the REPORTED inflow (what the meter says), which a
+// manipulated RTU can inflate. Every loss figure is computed from it on purpose.
+const lossOf = d => ((d.reported - d.consumption) / d.reported) * 100 || 0;
 
 // ---- network model ----
 // Coordinates in a 1000 x 640 viewBox. Source at top, trunk to pump, 4 DMAs.
@@ -482,6 +562,10 @@ DMAS.forEach((d, i) => {
   d.inflow = d.baseInflow;
   d.consumption = d.baseCons;
   d.nrw = 0;
+  d.reported = d.baseInflow;   // what the flow meter reports (== inflow unless spoofed)
+  d.spoof = false;             // RTU manipulated: meter inflated, hydraulics unchanged
+  d.segment = null;            // pinpointed pipe segment once localized
+  d.verdict = null;            // 'real' | 'spoof' after the Trust Layer ran
   // flow meter (DMA inlet)
   SENSORS.push({ id:`FM-${d.id.slice(-2)}`, type:'flow', dma:d.id, x:d.inlet.x, y:d.inlet.y-2,
                  value:d.baseInflow, unit:'لتر/ث', hist:[] });
@@ -501,6 +585,7 @@ const OT = [
   { id:'RTU-DMA-01',   role:'وحدة طرفية DMA-01', proto:'DNP3', ip:'10.20.2.21', status:'ok' },
   { id:'RTU-DMA-02',   role:'وحدة طرفية DMA-02', proto:'DNP3', ip:'10.20.2.22', status:'ok' },
   { id:'RTU-DMA-03',   role:'وحدة طرفية DMA-03', proto:'DNP3', ip:'10.20.2.23', status:'ok' },
+  { id:'RTU-DMA-04',   role:'وحدة طرفية DMA-04', proto:'DNP3', ip:'10.20.2.24', status:'ok' },
 ];
 
 // ---- alerts ----
@@ -583,6 +668,15 @@ function buildMap(){
     dropTxt.textContent='!';
     lk.appendChild(dropTxt);
     g.appendChild(lk);
+    // NABD pinpoint marker: the isolated pipe segment (hidden until localized)
+    const pin = el('g', { id:`pin-${d.id}`, opacity:'0' });
+    const px1 = d.x + 24, px2 = d.x + d.w - 70, py = d.y + 68, pmx = (px1+px2)/2;
+    pin.appendChild(el('line', { x1:px1, y1:py, x2:px2, y2:py, stroke:'var(--crit)', 'stroke-width':'5', 'stroke-linecap':'round', 'stroke-dasharray':'8 6' }));
+    pin.appendChild(el('circle', { cx:pmx, cy:py, r:'9', fill:'var(--panel)', stroke:'var(--crit)', 'stroke-width':'2.5' }));
+    pin.appendChild(el('circle', { cx:pmx, cy:py, r:'3', fill:'var(--crit)' }));
+    const pl = el('text', { x:pmx, y:py-15, 'text-anchor':'middle', class:'pin-lbl', fill:'var(--crit)' });
+    pl.textContent = 'P-0000'; pin.appendChild(pl);
+    g.appendChild(pin);
     svg.appendChild(g);
   });
 
@@ -666,16 +760,18 @@ function tick(){
     const bgLoss = d.baseInflow*0.03;
     d.leakRate = d.leak ? clamp(d.leakRate + rnd(-1,2.2), 8, d.baseInflow*0.6) : Math.max(0, d.leakRate - 6);
     d.inflow = d.consumption + bgLoss + d.leakRate;
-    d.nrw = clamp(((d.inflow - d.consumption) / d.inflow) * 100, 0, 70);
+    // a spoofed RTU inflates the reported meter value; the physics stay put
+    d.reported = d.spoof ? d.inflow * 2.05 : d.inflow;
+    d.nrw = clamp(lossOf(d), 0, 70);
 
-    totalIn += d.inflow;
+    totalIn += d.reported;
     totalMetered += d.consumption;
-    totalLoss += (d.inflow - d.consumption);
+    totalLoss += (d.reported - d.consumption);
 
     // update flow meter sensor
     const fm = SENSORS.find(s => s.type==='flow' && s.dma===d.id);
-    fm.value = d.inflow;
-    pushHist(fm, d.inflow);
+    fm.value = d.reported;
+    pushHist(fm, d.reported);
 
     // pressures drop when leaking
     const drop = d.leak ? clamp(d.leakRate/28, 0.2, 1.6) : 0;
@@ -690,15 +786,16 @@ function tick(){
 
   // ---- leak auto-detection (mass balance + MNF logic) ----
   DMAS.forEach(d => {
-    const lossPct = ((d.inflow - d.consumption)/d.inflow)*100;
+    const lossPct = lossOf(d);
     if (lossPct > 22 && !d._flagged){
       d._flagged = true;
-      const sev = lossPct > 38 ? 'crit' : 'warn';
-      addAlert('leak', sev, `تسرب مُحتمل — ${d.name}`,
-        `اختلال الموازنة الكتلية: الفقد ${lossPct.toFixed(0)}٪ من الداخل (${d.leakRate.toFixed(0)} لتر/ث). انخفاض ضغط مصاحب.`,
+      // never 'crit' here: a suspicion becomes critical only after the Trust Layer confirms it
+      addAlert('leak', 'warn', `تسرب مُشتبه — ${d.name}`,
+        `اختلال الموازنة الكتلية: الفقد ${lossPct.toFixed(0)}٪ من الداخل المُبلَّغ. ${d.leak ? 'انخفاض ضغط مصاحب.' : 'لا انخفاض ضغط مصاحب.'} بانتظار طبقة الثقة قبل أي إرسال.`,
         [d.id, `NRW ${lossPct.toFixed(0)}%`]);
+      scheduleTrust(d);
     }
-    if (lossPct < 12 && d._flagged){ d._flagged = false; resolveAlertsFor(a => a.kind==='leak' && a.meta && a.meta[0]===d.id); }
+    if (lossPct < 12 && d._flagged){ d._flagged = false; d.verdict = null; unpin(d); resolveAlertsFor(a => a.kind==='leak' && a.meta && a.meta[0]===d.id); }
   });
 
   // update KPIs
@@ -782,17 +879,20 @@ function renderDMAs(){
   document.getElementById('dmaCount').textContent = `${DMAS.length} مناطق`;
   box.innerHTML = '';
   DMAS.forEach(d => {
-    const lossPct = ((d.inflow - d.consumption)/d.inflow)*100 || 0;
+    const lossPct = lossOf(d);
     const cls = lossPct>22 ? 'crit' : lossPct>12 ? 'warn' : 'ok';
+    const pill = d.verdict==='spoof' ? '<span class="pill trust">قراءة مزيفة</span>'
+      : d.verdict==='real' ? '<span class="pill crit">تسرب مؤكد</span>'
+      : `<span class="pill ${cls}">${cls==='crit'?'مشتبه':cls==='warn'?'مراقبة':'سليم'}</span>`;
     const div = document.createElement('div');
     div.className = 'dma' + (d.id===selected?' sel':'');
     div.innerHTML = `
       <div class="r1">
         <span class="name">${d.name}</span>
         <span class="id">${d.id}</span>
-        <span class="pill ${cls}">${cls==='crit'?'تسرب':cls==='warn'?'مراقبة':'سليم'}</span>
+        ${pill}
       </div>
-      <div class="r2"><span>داخل: <b>${fmt(d.inflow,0)}</b> ل/ث</span><span>استهلاك: <b>${fmt(d.consumption,0)}</b></span><span>NRW: <b>${fmt(lossPct,0)}%</b></span></div>
+      <div class="r2"><span>داخل: <b>${fmt(d.reported,0)}</b> ل/ث</span><span>استهلاك: <b>${fmt(d.consumption,0)}</b></span><span>NRW: <b>${fmt(lossPct,0)}%</b></span></div>
       <div class="bar"><span style="width:${clamp(lossPct*2.2,4,100)}%;background:${cls==='crit'?'var(--crit)':cls==='warn'?'var(--warn)':'var(--good)'}"></span></div>`;
     div.addEventListener('click', () => { selected=d.id; renderDMAs(); renderTele(); highlightZone(); });
     box.appendChild(div);
@@ -818,8 +918,10 @@ function renderTele(){
   const flowHist = fm.hist, presHist = p0? p0.hist : [];
   const fmin = Math.min(...flowHist,0), fmax = Math.max(...flowHist, d.baseInflow);
   const pmin = 0, pmax = 6;
-  const lossPct = ((d.inflow-d.consumption)/d.inflow)*100 || 0;
-  const flowColor = d._flagged ? 'var(--crit)':'var(--flow)';
+  const lossPct = lossOf(d);
+  const flowColor = d.verdict==='spoof' ? 'var(--trust)' : d._flagged ? 'var(--crit)':'var(--flow)';
+  const stTxt = d.verdict==='spoof' ? 'قراءة مزيفة — محجوب' : d.verdict==='real' ? 'تسرب مؤكد' : d._flagged ? 'تسرب مشتبه' : 'مستقر';
+  const stCol = d.verdict==='spoof' ? 'var(--trust)' : d._flagged ? 'var(--crit)' : 'var(--good)';
   box.innerHTML = `
     <div class="th"><span class="tt">${d.name}</span><span class="ts">${fm.id}</span></div>
     <svg class="spark" viewBox="0 0 260 58" preserveAspectRatio="none" aria-label="اتجاه التدفق">
@@ -832,10 +934,10 @@ function renderTele(){
       <path d="${sparkPath(presHist,260,50,pmin,pmax)}" fill="none" stroke="var(--pressure)" stroke-width="2" transform="translate(0,4)"/>
     </svg>
     <div class="readouts">
-      <div class="ro"><div class="rl">التدفق الداخل</div><div class="rv">${fmt(d.inflow,0)} <span style="font-size:11px;color:var(--muted)">ل/ث</span></div></div>
+      <div class="ro"><div class="rl">التدفق الداخل (مُبلَّغ)</div><div class="rv">${fmt(d.reported,0)} <span style="font-size:11px;color:var(--muted)">ل/ث</span></div></div>
       <div class="ro"><div class="rl">فقد (NRW)</div><div class="rv" style="color:${lossPct>22?'var(--crit)':lossPct>12?'var(--warn)':'var(--ink)'}">${fmt(lossPct,0)} <span style="font-size:11px;color:var(--muted)">%</span></div></div>
       <div class="ro"><div class="rl">متوسط الضغط</div><div class="rv">${fmt(pts.reduce((a,s)=>a+s.value,0)/pts.length,1)} <span style="font-size:11px;color:var(--muted)">بار</span></div></div>
-      <div class="ro"><div class="rl">الحالة</div><div class="rv" style="font-size:13px;color:${d._flagged?'var(--crit)':'var(--good)'}">${d._flagged?'تسرب مؤكد':'مستقر'}</div></div>
+      <div class="ro"><div class="rl">الحالة</div><div class="rv" style="font-size:13px;color:${stCol}">${stTxt}</div></div>
     </div>`;
 }
 
@@ -904,8 +1006,13 @@ document.getElementById('injectBtn').addEventListener('click', () => {
 });
 document.getElementById('repairBtn').addEventListener('click', () => {
   let any=false;
-  DMAS.forEach(d => { if (d.leak){ d.leak=false; any=true; } });
-  if (any) addAlert('sys','info','تم إغلاق التسربات', 'أُرسل أمر إصلاح لجميع المناطق؛ ستعود الموازنة الكتلية تدريجياً.', ['تشغيل']);
+  DMAS.forEach(d => {
+    if (d.leak){ d.leak=false; any=true; closeWO(d); }
+    if (d.spoof){ d.spoof=false; any=true; const rtu = OT.find(o=>o.id===`RTU-${d.id}`); if (rtu){ rtu.integrity=true; rtu.status='ok'; } }
+  });
+  Object.values(trustTimers).forEach(clearTimeout); trustTimers = {};
+  renderOT();
+  if (any) addAlert('sys','info','إغلاق التسربات وإعادة المعايرة', 'أُغلقت أوامر العمل المفتوحة وأُعيدت معايرة العدادات المتلاعَب بها؛ ستعود الموازنة الكتلية تدريجياً.', ['تشغيل']);
 });
 document.getElementById('otBtn').addEventListener('click', () => {
   const scenarios = [
@@ -1210,9 +1317,9 @@ function twinFrame(){
   // DMA blocks color by leak status
   TWIN.dmaBlocks.forEach((b, i) => {
     const d = DMAS[i];
-    const leak = d && d._flagged;
-    const loss = d ? ((d.inflow-d.consumption)/d.inflow)*100 : 0;
-    const col = leak ? 0xf0605f : loss>12 ? 0xc9820d : 0x1f9d63;
+    const leak = d && d._flagged && !d.spoof;
+    const loss = d ? lossOf(d) : 0;
+    const col = leak ? 0xf0605f : (d && d.spoof) ? 0x8b6cd6 : loss>12 ? 0xc9820d : 0x1f9d63;
     b.block.material.color.setHex(col);
     b.block.material.emissive.setHex(leak ? 0x400505 : 0x0a2a1a);
     b.cone.material.opacity = leak ? (0.4 + 0.6*Math.abs(Math.sin(TWIN.t*4))) : 0;
@@ -1275,10 +1382,179 @@ document.getElementById('camBtn').addEventListener('click', () => {
   if (TWIN.built){ TWIN.cam.theta=-0.9; TWIN.cam.phi=0.95; TWIN.cam.radius=150; applyCam(TWIN.camera); }
 });
 
+// ============================================================
+//  NABD — Trust Layer, pinpoint, work orders, recovered water
+//  A suspected leak never dispatches a crew on its own. The Trust Layer asks
+//  four questions (flow anomaly? pressure drop? hydraulically consistent?
+//  RTU integrity intact?) and only a physical event passes all four.
+// ============================================================
+let scenarioBusy = false;
+let trustTimers = {};
+const WOS = [];
+let recovered = 0, recoverRate = 0;   // litres, L/s no longer being lost
+
+function setSteps(step, mode){
+  document.querySelectorAll('#steps .step').forEach(s => {
+    const i = +s.dataset.s;
+    s.classList.remove('active','done','blocked');
+    if (i < step) s.classList.add('done');
+    else if (i === step) s.classList.add(mode==='blocked' ? 'blocked' : mode==='done' ? 'done' : 'active');
+  });
+}
+const IDLE_TXT = 'لا يُرسَل فريق ميداني إلا بعد أن تثبت طبقة الثقة أن الحدث فيزيائي حقيقي — لا عطل حساس ولا تلاعباً سيبرانياً.';
+function resetTrust(){
+  setSteps(-1);
+  document.getElementById('trustZone').textContent = 'بانتظار حدث';
+  const v = document.getElementById('verdict'); v.className = 'verdict idle'; v.textContent = IDLE_TXT;
+}
+
+function trustChecks(d){
+  const dm = diurnal();
+  const pts = SENSORS.filter(s => s.type==='pressure' && s.dma===d.id);
+  const avgP = pts.reduce((a,s)=>a+s.value,0)/pts.length;
+  const expP = pts.reduce((a,s)=>a+s.base,0)/pts.length * (0.85 + 0.15*dm);   // what pressure should be now
+  const expQ = d.baseCons*dm + d.baseInflow*0.03;                              // what inflow should be now
+  const flowUp = d.reported > expQ*1.18;
+  const pDrop = (expP - avgP) > 0.15;
+  const consistent = flowUp && pDrop;
+  const rtu = OT.find(o => o.id === `RTU-${d.id}`);
+  const integrity = !(rtu && rtu.integrity === false);
+  return {
+    real: consistent && integrity,
+    checks: [
+      { ok: flowUp,     label:'شذوذ تدفق',        m:`${fmt(d.reported,0)} ل/ث مقابل متوقَّع ${fmt(expQ,0)}` },
+      { ok: pDrop,      label:'هبوط ضغط مصاحب',   m:`${fmt(avgP,2)} بار مقابل متوقَّع ${fmt(expP,2)}` },
+      { ok: consistent, label:'اتّساق هيدروليكي', m: consistent ? `عجز كتلي ${fmt(lossOf(d),0)}٪ يوافق هبوط الضغط` : 'تدفق مرتفع بلا أثر ضغط — لا يتّسق مع تسرب حقيقي' },
+      { ok: integrity,  label:'سلامة PLC/RTU',    m: integrity ? `${rtu?rtu.id:'RTU'} — بصمة التهيئة مطابقة` : `${rtu?rtu.id:'RTU'} — بصمة التهيئة لا تطابق آخر نسخة موقّعة` },
+    ]
+  };
+}
+function renderVerdict(d, res, pending){
+  const v = document.getElementById('verdict');
+  document.getElementById('trustZone').textContent = `${d.id} · ${d.name}`;
+  const rows = res.checks.map(c => `<div class="chk"><span class="${pending?'pend':(c.ok?'ok':'no')}">${pending?'◌':(c.ok?'✔':'✖')}</span><div><b>${c.label}</b><div class="m">${c.m}</div></div></div>`).join('');
+  if (pending){ v.className = 'verdict'; v.innerHTML = `<div class="vt">جارٍ التحقّق…<span class="vz">${d.id}</span></div>${rows}`; return; }
+  v.className = 'verdict ' + (res.real ? 'real' : 'spoof');
+  v.innerHTML = `<div class="vt">${res.real ? '✔ تسرب فيزيائي مؤكد' : '⛔ قراءة مُزيّفة — رُفض الإرسال'}<span class="vz">${d.id}</span></div>${rows}
+    <div class="decision">${res.real
+      ? `القرار: حدث حقيقي ← أمر عمل تلقائي للمقطع ${d.segment||'—'}.`
+      : 'القرار: حدث سيبراني لا فيزيائي ← لا يُرسَل فريق، ويُحوَّل للمركز الأمني (OTCC). بدون هذه الخطوة كانت فرقة ميدانية ستُهدر على إنذار كاذب.'}</div>`;
+}
+
+function pinpoint(d){
+  d.segment = d.segment || `P-${d.id.slice(-2)}${Math.floor(rnd(100,999))}`;
+  const pin = document.getElementById(`pin-${d.id}`);
+  if (pin){ pin.setAttribute('opacity','1'); pin.querySelector('.pin-lbl').textContent = d.segment; }
+}
+function unpin(d){ const pin = document.getElementById(`pin-${d.id}`); if (pin) pin.setAttribute('opacity','0'); d.segment = null; }
+
+function issueWO(d){
+  const wo = { id:`WO-${4820 + WOS.length + 1}`, zone:d.id, name:d.name, seg:d.segment, rate:d.leakRate, crew:'وحدة الصيانة ٣', t:nowT(), status:'open' };
+  WOS.unshift(wo); renderWO();
+  addAlert('sys','info', `أمر عمل ${wo.id} — ${d.name}`, `أُصدر تلقائياً بعد تحقّق طبقة الثقة. المقطع ${wo.seg} · فقد مُقدّر ${fmt(wo.rate,0)} ل/ث (${fmt(wo.rate*86.4,0)} م³/يوم).`, [d.id, wo.seg, 'تلقائي']);
+  return wo;
+}
+function closeWO(d){
+  const wo = WOS.find(w => w.zone===d.id && w.status==='open');
+  if (wo){ wo.status='closed'; wo.closedT = nowT(); recoverRate += wo.rate; renderWO(); }
+}
+function renderWO(){
+  const box = document.getElementById('woList');
+  const open = WOS.filter(w=>w.status==='open').length;
+  document.getElementById('woCount').textContent = WOS.length ? `${open} مفتوح / ${WOS.length}` : '0';
+  if (!WOS.length){ box.innerHTML = '<div class="empty">لا أوامر عمل — لم يُؤكَّد أي تسرب بعد.</div>'; return; }
+  box.innerHTML = WOS.map(w => `
+    <div class="wo" style="opacity:${w.status==='open'?1:.55}">
+      <div class="w1"><span class="wid">${w.id}</span><span class="wz">${w.name}</span>
+        <span class="pill ${w.status==='open'?'crit':'ok'}">${w.status==='open'?'الفرقة في الطريق':'مُغلق'}</span></div>
+      <div class="w2"><span>المقطع <b>${w.seg}</b></span><span>الفقد <b>${fmt(w.rate,0)}</b> ل/ث</span><span>الفرقة <b>${w.crew}</b></span><span>${w.status==='open'?w.t:'أُغلق '+w.closedT}</span></div>
+    </div>`).join('');
+}
+
+// litres that are no longer being lost, counted from the moment a verified leak is closed
+setInterval(() => {
+  if (paused || recoverRate<=0) return;
+  recovered += recoverRate;
+  document.getElementById('recovVal').textContent = fmt(recovered,0);
+}, 1000);
+
+function runTrust(d, onDone){
+  setSteps(2);
+  renderVerdict(d, trustChecks(d), true);
+  setTimeout(() => {
+    const res = trustChecks(d);
+    d.verdict = res.real ? 'real' : 'spoof';
+    renderVerdict(d, res, false);
+    resolveAlertsFor(a => a.kind==='leak' && a.meta && a.meta[0]===d.id);
+    if (res.real){
+      setSteps(3);
+      issueWO(d);
+      addAlert('leak','crit', `تسرب مؤكد — ${d.name}`, `طبقة الثقة أكدت الحدث: تدفق ↑ وضغط ↓ متّسقان، وسلامة RTU مطابقة. المقطع ${d.segment}.`, [d.id, d.segment, 'مؤكد']);
+      setTimeout(() => setSteps(4,'done'), 700);
+    } else {
+      setSteps(3,'blocked');
+      const rtu = OT.find(o => o.id === `RTU-${d.id}`); if (rtu) rtu.status='crit'; renderOT();
+      addAlert('ot','crit', `قراءة مزيفة — ${d.name}`, `عداد FM-${d.id.slice(-2)} يبلّغ تدفقاً مرتفعاً بلا هبوط ضغط ولا عجز كتلي، وبصمة RTU لا تطابق. حُجب إرسال الفرقة وفُتح بلاغ أمني.`, [d.id, 'DNP3', 'محجوب']);
+    }
+    renderDMAs(); renderTele();
+    if (onDone) onDone(res);
+  }, 2600);
+}
+// random "محاكاة تسرب" injections get the same treatment, a beat after detection
+function scheduleTrust(d){
+  if (scenarioBusy || trustTimers[d.id]) return;
+  trustTimers[d.id] = setTimeout(() => {
+    delete trustTimers[d.id];
+    resetTrust(); setSteps(1); pinpoint(d);
+    setTimeout(() => runTrust(d), 900);
+  }, 1500);
+}
+
+// guided scenario A — a real burst: detect → pinpoint → verify → dispatch → repair → recover
+function scenarioLeak(){
+  if (scenarioBusy) return; scenarioBusy = true; setScnButtons(false);
+  const d = DMAS[1];   // وسط المدينة
+  selected = d.id; highlightZone(); resetTrust();
+  d.leak = true; d.leakRate = 34;
+  setSteps(0); document.getElementById('trustZone').textContent = `${d.id} · ${d.name}`;
+  addAlert('leak','warn', `بدء حدث تسرب — ${d.name}`, 'انكسار فعلي في أنبوب توزيع. راقب التدفق الليلي والضغط.', [d.id,'سيناريو']);
+  if (!paused) tick();
+  setTimeout(() => { setSteps(1); pinpoint(d);
+    addAlert('sys','info', `تحديد الموقع — ${d.name}`, `تثليث تدرّج الضغط بين ${SENSORS.filter(s=>s.type==='pressure'&&s.dma===d.id).map(s=>s.id).join(' و ')} يحصر التسرب في المقطع ${d.segment}.`, [d.id, d.segment]);
+  }, 2200);
+  setTimeout(() => runTrust(d, () => {
+    setTimeout(() => {
+      d.leak = false; closeWO(d);
+      addAlert('sys','info', `أُغلق التسرب — ${d.name}`, `أنجزت وحدة الصيانة ٣ إصلاح المقطع ${d.segment}. بدأ عدّاد المياه المُستردّة.`, [d.id, 'مُنجز']);
+      scenarioBusy = false; setScnButtons(true);
+    }, 6500);
+  }), 4200);
+}
+// guided scenario B — a manipulated RTU: looks like a leak on flow alone; the Trust Layer refuses
+function scenarioSpoof(){
+  if (scenarioBusy) return; scenarioBusy = true; setScnButtons(false);
+  const d = DMAS[3];   // الحي الجنوبي
+  selected = d.id; highlightZone(); resetTrust();
+  const rtu = OT.find(o => o.id === `RTU-${d.id}`); if (rtu){ rtu.integrity = false; rtu.status='warn'; renderOT(); }
+  d.spoof = true;
+  setSteps(0); document.getElementById('trustZone').textContent = `${d.id} · ${d.name}`;
+  addAlert('ot','warn', `تغيير تهيئة خارج نافذة الصيانة — ${rtu?rtu.id:''}`, 'كتابة DNP3 على معامل معايرة عداد التدفق من مضيف غير معروف (10.20.9.66).', [d.id,'DNP3','FC=2']);
+  if (!paused) tick();
+  setTimeout(() => { setSteps(1);
+    addAlert('sys','info', `تحديد الموقع — ${d.name}`, 'تعذّر الحصر: لا تدرّج ضغط بين الحساسات يدلّ على مقطع بعينه.', [d.id, 'غير محدد']);
+  }, 2200);
+  setTimeout(() => runTrust(d, () => { scenarioBusy = false; setScnButtons(true); }), 4000);
+}
+function setScnButtons(on){ ['scnLeakBtn','scnSpoofBtn'].forEach(id => document.getElementById(id).disabled = !on); }
+document.getElementById('scnLeakBtn').addEventListener('click', scenarioLeak);
+document.getElementById('scnSpoofBtn').addEventListener('click', scenarioSpoof);
+
 // ---- init ----
 buildMap();
 renderOT();
 renderAlerts();
+renderWO();
+resetTrust();
 // seed a couple history points so sparklines aren't empty at rest
 for (let i=0;i<12;i++) tick();
 renderDMAs();
@@ -1289,3 +1565,4 @@ animateFlow();
 setInterval(() => { if (!paused) tick(); }, 2000);
 setInterval(clockLoop, 1000);
 </script>
+</body></html>

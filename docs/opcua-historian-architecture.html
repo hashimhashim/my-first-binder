@@ -1,0 +1,267 @@
+<title>معمارية ربط OPC-UA / Historian</title>
+<meta name="description" content="مخطط معماري مرجعي لربط التوأم الرقمي ببيانات OPC-UA وHistorian بنمط قراءة-فقط عبر بوابة أحادية الاتجاه ضمن حدود OTCC.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:#eaeff2; --panel:#ffffff; --panel-2:#f4f7f9; --ink:#12242d; --muted:#586f79;
+    --faint:#8399a2; --line:#d5e0e5; --line-strong:#bccdd4;
+    --it:#2f6fd0; --it-bg:rgba(47,111,208,.10);
+    --dmz:#c9820d; --dmz-bg:rgba(201,130,13,.13);
+    --ot:#0e8fa8; --ot-bg:rgba(14,143,168,.10);
+    --diode:#0e8fa8; --block:#d23b3b; --good:#1f9d63;
+    --shadow:0 1px 2px rgba(16,36,46,.05),0 8px 26px rgba(16,36,46,.07);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --it:#5b9bff; --it-bg:rgba(91,155,255,.14);
+    --dmz:#e6a532; --dmz-bg:rgba(230,165,50,.14);
+    --ot:#2bbcd6; --ot-bg:rgba(43,188,214,.13);
+    --diode:#2bbcd6; --block:#f0605f; --good:#35c98a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 26px rgba(0,0,0,.35);
+  }}
+  :root[data-theme="dark"] {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --it:#5b9bff; --it-bg:rgba(91,155,255,.14);
+    --dmz:#e6a532; --dmz-bg:rgba(230,165,50,.14);
+    --ot:#2bbcd6; --ot-bg:rgba(43,188,214,.13);
+    --diode:#2bbcd6; --block:#f0605f; --good:#35c98a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 26px rgba(0,0,0,.35);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; direction:rtl; background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans Arabic",system-ui,sans-serif; line-height:1.6; }
+  .wrap { max-width:1000px; margin:0 auto; padding-block:32px; padding-inline:20px; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; direction:ltr; unicode-bidi:isolate; }
+
+  header.h { margin-bottom:22px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ot); font-weight:600; }
+  h1 { font-size:clamp(22px,3.4vw,30px); margin:.15em 0 .1em; text-wrap:balance; font-weight:700; }
+  .lede { color:var(--muted); max-width:68ch; font-size:15px; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:20px clamp(16px,3vw,28px); margin-block:20px; }
+  figure { margin:0; }
+  figure svg { display:block; width:100%; height:auto; color:var(--ink); }
+  figcaption { color:var(--muted); font-size:12.5px; margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+
+  h2 { font-size:16px; margin:0 0 4px; font-weight:700; display:flex; align-items:center; gap:9px; }
+  h2 .b { width:9px; height:9px; border-radius:2px; }
+  .sub { color:var(--faint); font-size:12.5px; margin:0 0 14px; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:10px 20px; margin-top:16px; font-size:12px; color:var(--muted); }
+  .lg { display:flex; align-items:center; gap:7px; }
+  .lg .sw { width:14px; height:14px; border-radius:3px; flex:none; border:1px solid var(--line-strong); }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:right; padding:9px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600; }
+  td .tag { font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; color:var(--ot); white-space:nowrap; }
+  tr:last-child td { border-bottom:0; }
+
+  .flow-tags { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .ft { background:var(--panel); padding:11px 13px; }
+  .ft .k { font-size:11px; color:var(--muted); }
+  .ft .v { font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; }
+  ul.notes { margin:6px 0 0; padding-inline-start:20px; color:var(--ink); font-size:14px; }
+  ul.notes li { margin-bottom:6px; }
+  ul.notes b { color:var(--ot); }
+  .foot { color:var(--faint); font-size:11.5px; margin-top:8px; }
+</style>
+
+<div class="wrap">
+  <header class="h">
+    <div class="eyebrow">التوأم الرقمي لشبكة المياه · معمارية التكامل</div>
+    <h1>ربط التوأم الرقمي ببيانات OPC-UA / Historian</h1>
+    <p class="lede">مخطط مرجعي لتغذية التوأم الرقمي ببيانات التشغيل الحية والتاريخية بنمط <strong>قراءة فقط</strong>، عبر بوابة أحادية الاتجاه ضمن منطقة صناعية منزوعة السلاح (IDMZ) — دون أي مسار تحكم عكسي، تماشياً مع متطلبات الضوابط الأساسية لأمن الأنظمة التشغيلية (OTCC).</p>
+  </header>
+
+  <div class="card">
+    <figure>
+      <svg viewBox="0 0 940 760" role="img" aria-label="مخطط طبقي بنموذج Purdue يوضح تدفق البيانات من أجهزة الحقل عبر المتحكمات وSCADA وHistorian وOPC-UA، ثم عبر بوابة أحادية الاتجاه في المنطقة منزوعة السلاح إلى التوأم الرقمي في منطقة تقنية المعلومات، مع منع مسار التحكم العكسي.">
+        <defs>
+          <marker id="up" markerWidth="11" markerHeight="11" refX="5.5" refY="8" orient="auto"><path d="M5.5 0 L11 9 L0 9 Z" fill="var(--ot)"/></marker>
+          <marker id="upit" markerWidth="11" markerHeight="11" refX="5.5" refY="8" orient="auto"><path d="M5.5 0 L11 9 L0 9 Z" fill="var(--diode)"/></marker>
+          <marker id="updmz" markerWidth="11" markerHeight="11" refX="5.5" refY="8" orient="auto"><path d="M5.5 0 L11 9 L0 9 Z" fill="var(--dmz)"/></marker>
+        </defs>
+
+        <!-- ============ ZONE BACKDROPS ============ -->
+        <!-- IT zone -->
+        <rect x="40" y="40" width="670" height="112" rx="12" fill="var(--it-bg)" stroke="var(--it)" stroke-width="1.5"/>
+        <!-- IDMZ zone -->
+        <rect x="40" y="196" width="670" height="118" rx="12" fill="var(--dmz-bg)" stroke="var(--dmz)" stroke-width="1.5" stroke-dasharray="7 5"/>
+        <!-- OT zone (levels 3..0) -->
+        <rect x="40" y="358" width="670" height="366" rx="12" fill="var(--ot-bg)" stroke="var(--ot)" stroke-width="1.5"/>
+
+        <!-- zone labels (right rail) -->
+        <text x="726" y="90" fill="var(--it)" font-family="IBM Plex Sans Arabic" font-size="14" font-weight="700">منطقة تقنية المعلومات</text>
+        <text x="726" y="110" fill="var(--muted)" font-family="IBM Plex Mono" font-size="11">Purdue L4 / L5</text>
+        <text x="726" y="128" fill="var(--faint)" font-family="IBM Plex Sans Arabic" font-size="11">التحليلات والتوأم الرقمي</text>
+
+        <text x="726" y="246" fill="var(--dmz)" font-family="IBM Plex Sans Arabic" font-size="14" font-weight="700">منطقة منزوعة السلاح</text>
+        <text x="726" y="266" fill="var(--muted)" font-family="IBM Plex Mono" font-size="11">IDMZ · Purdue L3.5</text>
+        <text x="726" y="284" fill="var(--faint)" font-family="IBM Plex Sans Arabic" font-size="11">الفصل الأمني والبوابة</text>
+
+        <text x="726" y="404" fill="var(--ot)" font-family="IBM Plex Sans Arabic" font-size="14" font-weight="700">منطقة التشغيل OT</text>
+        <text x="726" y="424" fill="var(--muted)" font-family="IBM Plex Mono" font-size="11">Purdue L3 → L0</text>
+        <text x="726" y="442" fill="var(--faint)" font-family="IBM Plex Sans Arabic" font-size="11">SCADA والتحكم والحقل</text>
+
+        <!-- ============ IT ZONE NODES ============ -->
+        <g font-family="IBM Plex Sans Arabic">
+          <rect x="60" y="66" width="180" height="60" rx="9" fill="var(--panel)" stroke="var(--it)" stroke-width="1.5"/>
+          <text x="150" y="92" text-anchor="middle" font-size="13.5" font-weight="600" fill="currentColor">التوأم الرقمي 3D/2D</text>
+          <text x="150" y="110" text-anchor="middle" font-size="11" fill="var(--muted)">لوحة التشغيل · NRW · الطاقة</text>
+
+          <rect x="256" y="66" width="180" height="60" rx="9" fill="var(--panel)" stroke="var(--it)" stroke-width="1.5"/>
+          <text x="346" y="92" text-anchor="middle" font-size="13.5" font-weight="600" fill="currentColor">منصة التحليلات</text>
+          <text x="346" y="110" text-anchor="middle" font-size="11" fill="var(--muted)">كشف الفاقد · تنبؤ الأعطال</text>
+
+          <rect x="452" y="66" width="180" height="60" rx="9" fill="var(--panel)" stroke="var(--it)" stroke-width="1.5"/>
+          <text x="542" y="88" text-anchor="middle" font-size="13.5" font-weight="600" fill="currentColor">مؤرّخ نسخة IT</text>
+          <text x="542" y="106" text-anchor="middle" font-size="11" fill="var(--muted)">Time-series (نسخة قراءة)</text>
+        </g>
+
+        <!-- ============ IDMZ NODES ============ -->
+        <g font-family="IBM Plex Sans Arabic">
+          <!-- Data diode (emphasis) -->
+          <rect x="60" y="222" width="230" height="66" rx="9" fill="var(--panel)" stroke="var(--diode)" stroke-width="2.5"/>
+          <text x="175" y="246" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--diode)">بوابة أحادية الاتجاه</text>
+          <text x="175" y="264" text-anchor="middle" font-size="11" fill="var(--muted)">Data Diode / Unidirectional</text>
+          <text x="175" y="280" text-anchor="middle" font-size="10.5" class="mono" fill="var(--faint)">OT → IT فقط</text>
+
+          <rect x="306" y="222" width="185" height="66" rx="9" fill="var(--panel)" stroke="var(--dmz)" stroke-width="1.5"/>
+          <text x="398" y="246" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">مرآة OPC-UA</text>
+          <text x="398" y="264" text-anchor="middle" font-size="11" fill="var(--muted)">Aggregating Server</text>
+          <text x="398" y="280" text-anchor="middle" font-size="10.5" class="mono" fill="var(--faint)">نسخة معزولة</text>
+
+          <rect x="507" y="222" width="185" height="66" rx="9" fill="var(--panel)" stroke="var(--dmz)" stroke-width="1.5"/>
+          <text x="599" y="246" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">جدار ناري صناعي</text>
+          <text x="599" y="264" text-anchor="middle" font-size="11" fill="var(--muted)">DPI · تجزئة L3.5</text>
+          <text x="599" y="280" text-anchor="middle" font-size="10.5" class="mono" fill="var(--faint)">allow-list</text>
+        </g>
+
+        <!-- ============ OT NODES ============ -->
+        <g font-family="IBM Plex Sans Arabic">
+          <!-- L3 -->
+          <rect x="60" y="380" width="230" height="58" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5"/>
+          <text x="175" y="404" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Historian (المؤرّخ)</text>
+          <text x="175" y="422" text-anchor="middle" font-size="11" fill="var(--muted)">تخزين تاريخي · L3</text>
+
+          <rect x="306" y="380" width="185" height="58" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5"/>
+          <text x="398" y="404" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">خادم OPC-UA</text>
+          <text x="398" y="422" text-anchor="middle" font-size="11" fill="var(--muted)">Server · L3</text>
+
+          <rect x="507" y="380" width="185" height="58" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5"/>
+          <text x="599" y="404" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">تصحيح/مكافحة فيروسات</text>
+          <text x="599" y="422" text-anchor="middle" font-size="11" fill="var(--muted)">إدارة L3</text>
+
+          <!-- L2 -->
+          <rect x="60" y="470" width="315" height="52" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5"/>
+          <text x="217" y="492" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">SCADA / HMI — الإشراف</text>
+          <text x="217" y="510" text-anchor="middle" font-size="11" fill="var(--muted)">Purdue L2</text>
+
+          <rect x="391" y="470" width="301" height="52" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5"/>
+          <text x="541" y="492" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">مراقبة أمن OT / IDS</text>
+          <text x="541" y="510" text-anchor="middle" font-size="11" fill="var(--muted)">honey-bit → Wazuh · L2/L3</text>
+
+          <!-- L1 -->
+          <rect x="60" y="554" width="632" height="50" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5"/>
+          <text x="376" y="575" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">المتحكمات — PLC · RTU (التحكم)</text>
+          <text x="376" y="593" text-anchor="middle" font-size="11" fill="var(--muted)">Purdue L1 · محطة الضخ ووحدات DMA</text>
+
+          <!-- L0 -->
+          <rect x="60" y="636" width="632" height="50" rx="9" fill="var(--panel)" stroke="var(--ot)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="376" y="657" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">أجهزة الحقل — حساسات ضغط/تدفق · مضخات · صمامات</text>
+          <text x="376" y="675" text-anchor="middle" font-size="11" fill="var(--muted)">Purdue L0</text>
+        </g>
+
+        <!-- ============ FLOW ARROWS (upward = data toward IT) ============ -->
+        <g class="mono" font-size="11" fill="var(--muted)">
+          <!-- L0 -> L1 -->
+          <line x1="376" y1="636" x2="376" y2="606" stroke="var(--ot)" stroke-width="2" marker-end="url(#up)"/>
+          <text x="386" y="626" fill="var(--muted)">I/O 4–20mA</text>
+          <!-- L1 -> L2 -->
+          <line x1="217" y1="554" x2="217" y2="524" stroke="var(--ot)" stroke-width="2" marker-end="url(#up)"/>
+          <text x="227" y="544" fill="var(--muted)">Modbus/TCP · DNP3</text>
+          <!-- L2 -> L3 (SCADA to Historian/OPC) -->
+          <line x1="217" y1="470" x2="217" y2="440" stroke="var(--ot)" stroke-width="2" marker-end="url(#up)"/>
+          <text x="227" y="460" fill="var(--muted)">تأريخ · OPC-UA</text>
+          <line x1="398" y1="470" x2="398" y2="440" stroke="var(--ot)" stroke-width="2" marker-end="url(#up)"/>
+
+          <!-- OT L3 -> IDMZ (cross OT boundary) : read-only OPC-UA -->
+          <line x1="398" y1="380" x2="398" y2="290" stroke="var(--dmz)" stroke-width="2.5" marker-end="url(#updmz)"/>
+          <text x="408" y="340" fill="var(--dmz)" font-weight="600">OPC-UA — قراءة فقط</text>
+          <line x1="175" y1="380" x2="175" y2="290" stroke="var(--dmz)" stroke-width="2.5" marker-end="url(#updmz)"/>
+
+          <!-- IDMZ diode -> IT (cross IT boundary) : one-way replicate -->
+          <line x1="175" y1="222" x2="175" y2="128" stroke="var(--diode)" stroke-width="3" marker-end="url(#upit)"/>
+          <text x="185" y="178" fill="var(--diode)" font-weight="600">تدفق أحادي</text>
+          <text x="185" y="192" fill="var(--diode)" font-weight="600">الاتجاه</text>
+        </g>
+
+        <!-- ============ BLOCKED REVERSE CONTROL PATH ============ -->
+        <g>
+          <line x1="560" y1="128" x2="560" y2="300" stroke="var(--block)" stroke-width="2" stroke-dasharray="6 5" opacity="0.8"/>
+          <line x1="560" y1="300" x2="560" y2="380" stroke="var(--block)" stroke-width="2" stroke-dasharray="6 5" opacity="0.55"/>
+          <circle cx="560" cy="214" r="15" fill="var(--panel)" stroke="var(--block)" stroke-width="2.5"/>
+          <line x1="550" y1="204" x2="570" y2="224" stroke="var(--block)" stroke-width="2.5"/>
+          <text x="578" y="210" fill="var(--block)" font-family="IBM Plex Sans Arabic" font-size="11.5" font-weight="700">لا تحكم عكسي</text>
+          <text x="578" y="226" fill="var(--block)" font-family="IBM Plex Sans Arabic" font-size="10.5">من IT إلى OT</text>
+        </g>
+      </svg>
+      <figcaption>البيانات تتدفق صعوداً فقط: الحقل ← المتحكمات ← SCADA ← Historian/OPC-UA، ثم تُقرأ عبر IDMZ وتُنسَخ عبر بوابة أحادية الاتجاه إلى التوأم الرقمي في منطقة IT. المسار الأحمر المقطوع يوضح أن أي أمر تحكم من جهة IT نحو OT مرفوض بنية المعمارية — وهو حجر الأساس في توافق OTCC.</figcaption>
+    </figure>
+
+    <div class="legend">
+      <span class="lg"><span class="sw" style="background:var(--it-bg);border-color:var(--it)"></span> منطقة IT (L4/L5)</span>
+      <span class="lg"><span class="sw" style="background:var(--dmz-bg);border-color:var(--dmz)"></span> منطقة IDMZ (L3.5)</span>
+      <span class="lg"><span class="sw" style="background:var(--ot-bg);border-color:var(--ot)"></span> منطقة OT (L3→L0)</span>
+      <span class="lg"><span class="sw" style="background:var(--diode);border:0"></span> بوابة أحادية الاتجاه</span>
+      <span class="lg"><span class="sw" style="background:var(--block);border:0"></span> مسار تحكم عكسي مرفوض</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--ot)"></span> ما الذي يُقرأ ومن أين</h2>
+    <p class="sub">نقاط الوسم (Tags) المستهلكة من التوأم الرقمي — بلا كتابة، بلا أوامر.</p>
+    <div class="flow-tags">
+      <div class="ft"><div class="k">بيانات لحظية</div><div class="v">OPC-UA<br>Subscriptions</div></div>
+      <div class="ft"><div class="k">بيانات تاريخية</div><div class="v">Historian<br>HDA / REST</div></div>
+      <div class="ft"><div class="k">الضغط/التدفق</div><div class="v">PT / FM tags</div></div>
+      <div class="ft"><div class="k">حالة الأصول</div><div class="v">Pump / Valve</div></div>
+      <div class="ft"><div class="k">الطاقة</div><div class="v">kW · kWh/m³</div></div>
+      <div class="ft"><div class="k">الأمن</div><div class="v">honey-bit → SIEM</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--dmz)"></span> ربط ضوابط OTCC</h2>
+    <p class="sub">كيف تحقّق كل طبقة في المعمارية متطلبات الضوابط الأساسية لأمن الأنظمة التشغيلية.</p>
+    <table>
+      <thead><tr><th>المبدأ</th><th>التطبيق في المعمارية</th><th>مجال OTCC</th></tr></thead>
+      <tbody>
+        <tr><td><b>تجزئة الشبكات</b></td><td>منطقة IDMZ (L3.5) تفصل OT عن IT؛ لا اتصال مباشر بين الطبقتين.</td><td class="tag">حماية الشبكة</td></tr>
+        <tr><td><b>التدفق أحادي الاتجاه</b></td><td>بوابة/Data Diode تسمح بـ OT→IT فقط؛ يستحيل مادياً عكس المسار.</td><td class="tag">التحكم بالوصول</td></tr>
+        <tr><td><b>قراءة فقط</b></td><td>OPC-UA بصلاحية قراءة (Browse/Read/Subscribe) دون Write؛ نسخة مرآة معزولة.</td><td class="tag">أقل صلاحية</td></tr>
+        <tr><td><b>منع التحكم عن بُعد</b></td><td>لا مسار أوامر من IT/التوأم إلى المتحكمات؛ التوأم مُستهلك بيانات فقط.</td><td class="tag">سلامة النظام</td></tr>
+        <tr><td><b>التسجيل والمراقبة</b></td><td>مراقبة OT وIDS (honey-bit → Wazuh) لكل جلسة عبر الحدود.</td><td class="tag">المراقبة والكشف</td></tr>
+        <tr><td><b>جرد الأصول</b></td><td>سجل أصول OT (PLC/RTU/SCADA) محدَّث ومربوط بلوحة الأمن.</td><td class="tag">إدارة الأصول</td></tr>
+        <tr><td><b>allow-list للبروتوكولات</b></td><td>جدار ناري صناعي بفحص DPI يسمح فقط بمنافذ/بروتوكولات معتمدة.</td><td class="tag">حماية الشبكة</td></tr>
+      </tbody>
+    </table>
+    <p class="foot">مرجعي عام لمواءمة المبادئ — يُراجَع مقابل الإصدار المعتمد من OTCC لدى الجهة قبل الاعتماد.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--it)"></span> مسار التنفيذ العملي</h2>
+    <ul class="notes">
+      <li><b>المرحلة ١ — قراءة معزولة:</b> ربط التوأم بنسخة مرآة OPC-UA في IDMZ لبيانات محطة واحدة، دون لمس شبكة OT مباشرةً.</li>
+      <li><b>المرحلة ٢ — التاريخي:</b> إضافة قناة Historian (HDA/REST) للبيانات التاريخية لتشغيل تحليلات الفاقد والصيانة التنبؤية.</li>
+      <li><b>المرحلة ٣ — البوابة الأحادية:</b> ترقية الربط إلى Data Diode فعلي لإثبات استحالة العكس أمام المراجعة الأمنية.</li>
+      <li><b>القياس:</b> مؤشر واحد واضح لكل مرحلة (نسبة الفاقد NRW، ساعات التوقف، أو الطاقة النوعية kWh/m³) على محطة تجريبية.</li>
+    </ul>
+    <p class="foot">مطابق لمبدأ «ابدأ بمحطة واحدة وقِس بمؤشر واضح» — قابل للتقديم كمبادرة ابتكار داخلية (INV-2026-001).</p>
+  </div>
+</div>

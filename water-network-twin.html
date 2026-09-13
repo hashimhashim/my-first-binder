@@ -258,6 +258,32 @@
     * { animation-duration: .001ms !important; }
     .flowline { stroke-dasharray: none !important; }
   }
+
+  /* ---------- 3D twin view ---------- */
+  .seg { display: flex; gap: 2px; background: var(--sunk); padding: 2px; border-radius: 8px; }
+  .seg button { font-family: inherit; font-size: 11px; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: 5px 11px; border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--panel); color: var(--accent); box-shadow: var(--shadow); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ph-right { display: flex; align-items: center; gap: 12px; }
+  .twin-canvas { position: relative; width: 100%; aspect-ratio: 16 / 10; background: radial-gradient(120% 120% at 50% 0%, #0e2029, #060d12 75%); overflow: hidden; }
+  .twin-canvas canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; cursor: grab; }
+  .twin-canvas canvas:active { cursor: grabbing; }
+  .twin-tip { position: absolute; inset-block-start: 10px; inset-inline-start: 12px; font-size: 10px; color: #7fa6b3; font-family: "IBM Plex Mono", monospace; background: rgba(6,13,18,.55); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  .twin-flowlbl { position: absolute; inset-block-end: 10px; inset-inline-start: 12px; display: flex; gap: 12px; font-size: 9.5px; color: #9fc0cb; font-family: "IBM Plex Mono", monospace; pointer-events: none; }
+  .twin-flowlbl span { display: flex; align-items: center; gap: 5px; }
+  .twin-flowlbl i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .energy-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+  .energy-bar .e { background: var(--panel); padding: 9px 12px; }
+  .energy-bar .el { font-size: 10px; color: var(--muted); }
+  .energy-bar .ev { font-size: 17px; font-weight: 600; font-family: "IBM Plex Mono", monospace; }
+  .energy-bar .ev .u { font-size: 10px; color: var(--muted); font-weight: 500; }
+  .energy-bar .ev.good { color: var(--good); }
+  .energy-bar .ev.warn { color: var(--warn); }
+  .twin-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 11px 14px; border-top: 1px solid var(--line); }
+  .twin-controls label { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .twin-controls input[type=range] { accent-color: var(--accent); width: 120px; }
+  .twin-controls .rngval { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--ink); min-width: 14px; text-align: center; }
+  .scn { font-size: 11px; color: var(--faint); margin-inline-start: auto; }
 </style>
 
 <div class="app">
@@ -336,9 +362,41 @@
       <div class="panel">
         <div class="ph">
           <h2>مخطط الشبكة الحي</h2>
-          <span class="hint" id="mapClock">مباشر</span>
+          <div class="ph-right">
+            <div class="seg" role="tablist" aria-label="نوع العرض">
+              <button data-view="2d" class="on" id="view2d">مخطط 2D</button>
+              <button data-view="3d" id="view3d">توأم 3D</button>
+            </div>
+            <span class="hint" id="mapClock">مباشر</span>
+          </div>
         </div>
         <div class="mapwrap" id="mapwrap"></div>
+
+        <div id="twin3d" hidden>
+          <div class="twin-canvas" id="twinCanvas">
+            <div class="twin-tip">اسحب للتدوير · عجلة الفأرة للتقريب</div>
+            <div class="twin-flowlbl">
+              <span><i style="background:#2dd4bf"></i> تدفق سليم</span>
+              <span><i style="background:#f0605f"></i> مسار به تسرب</span>
+              <span><i style="background:#5b9bff"></i> ضخ نشط</span>
+            </div>
+          </div>
+          <div class="energy-bar">
+            <div class="e"><div class="el">المضخات العاملة</div><div class="ev num" id="ePumps">—<span class="u"> / 5</span></div></div>
+            <div class="e"><div class="el">القدرة الكهربائية</div><div class="ev num" id="ePower">—<span class="u"> kW</span></div></div>
+            <div class="e"><div class="el">الطاقة النوعية</div><div class="ev num" id="eSE">—<span class="u"> kWh/m³</span></div></div>
+            <div class="e"><div class="el">الوفر مقابل التشغيل الكامل</div><div class="ev num" id="eSave">—<span class="u"> %</span></div></div>
+          </div>
+          <div class="twin-controls">
+            <label>المضخات العاملة
+              <input type="range" id="pumpRange" min="1" max="5" step="1" value="4">
+              <span class="rngval num" id="pumpRangeVal">4</span>
+            </label>
+            <button class="btn primary" id="optBtn">⚡ توزيع الأحمال الأمثل</button>
+            <button class="btn" id="camBtn">⟳ إعادة ضبط الكاميرا</button>
+            <span class="scn" id="scnNote">—</span>
+          </div>
+        </div>
         <div class="map-legend">
           <span class="lg"><span class="sw" style="background:var(--pressure)"></span> حساس ضغط</span>
           <span class="lg"><span class="sw" style="background:var(--flow)"></span> عداد تدفق DMA</span>
@@ -379,6 +437,7 @@
   </footer>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -660,6 +719,11 @@ function tick(){
   renderSensorsLive();
   renderDMAs();
   renderTele();
+
+  // energy + supply/reservoir consequence
+  currentDemand = totalIn;
+  updateReservoirs();
+  updateEnergy();
 }
 
 function pushHist(s, v){ s.hist.push(v); if (s.hist.length>48) s.hist.shift(); }
@@ -874,6 +938,342 @@ function clockLoop(){
   const p=n=>String(n).padStart(2,'0');
   document.getElementById('uptime').textContent = `UPTIME ${p(Math.floor(up/3600))}:${p(Math.floor(up/60)%60)}:${p(up%60)}`;
 }
+
+// ============================================================
+//  ENERGY MODEL — pumping scenarios & load distribution
+// ============================================================
+const PUMPCFG = { rated:120, headM:55, motorEff:0.94, effMax:0.82, curve:2.2 }; // rated L/s per pump
+let pumpsRunning = 4;
+let currentDemand = 0;
+let lowTankFlagged = false;
+
+function pumpElectricPower(demand, pumps){
+  if (pumps <= 0) return Infinity;
+  const perPump = demand / pumps;                 // L/s per pump
+  const loadFrac = perPump / PUMPCFG.rated;
+  if (loadFrac > 1.12) return Infinity;           // overload → configuration infeasible
+  let eff = PUMPCFG.effMax * (1 - PUMPCFG.curve * Math.pow(loadFrac - 0.9, 2)); // BEP at 90% load
+  eff = clamp(eff, 0.28, PUMPCFG.effMax);
+  const pHyd = 9.81 * (demand/1000) * PUMPCFG.headM;   // hydraulic kW (ρgQH)
+  return pHyd / (eff * PUMPCFG.motorEff);         // electric kW
+}
+function specificEnergy(power, demand){ return demand > 0 ? power / (demand * 3.6) : 0; } // kWh/m³
+function optimalPumps(demand){
+  let best = null;
+  for (let p=1; p<=5; p++){ const pw = pumpElectricPower(demand, p); if (pw < Infinity && (!best || pw < best.pw)) best = { p, pw }; }
+  return best;
+}
+function updateEnergy(){
+  const d = currentDemand || 1;
+  const power = pumpElectricPower(d, pumpsRunning);
+  const feasible = power < Infinity;
+  const se = feasible ? specificEnergy(power, d) : 0;
+  const full = pumpElectricPower(d, 5);           // naïve "run everything" reference
+  const save = (feasible && full < Infinity && full > 0) ? clamp((full - power)/full*100, 0, 100) : 0;
+  const opt = optimalPumps(d);
+
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.childNodes[0].nodeValue = v; };
+  set('ePumps', String(pumpsRunning));
+  set('ePower', feasible ? fmt(power,0) : '⚠ نقص');
+  set('eSE', feasible ? fmt(se,3) : '—');
+  set('eSave', feasible ? fmt(save,1) : '0');
+  const seEl = document.getElementById('eSE');
+  if (seEl){ seEl.classList.toggle('good', feasible && opt && pumpsRunning===opt.p); seEl.classList.toggle('warn', feasible && opt && pumpsRunning!==opt.p); }
+  const powEl = document.getElementById('ePower'); if (powEl) powEl.classList.toggle('warn', !feasible);
+
+  const scn = document.getElementById('scnNote');
+  if (scn){
+    if (!feasible) scn.textContent = 'السيناريو غير كافٍ: المضخات العاملة لا تغطي الطلب — الخزانات تُستنزف.';
+    else if (opt && pumpsRunning !== opt.p) scn.textContent = `المقترح: ${opt.p} مضخات · وفر مُحتمل إضافي ${fmt((power-opt.pw)/power*100,1)}٪`;
+    else scn.textContent = 'التوزيع الحالي هو الأمثل للطلب الحالي ✓';
+  }
+}
+
+// ---- reservoirs: supply vs demand integration ----
+const RES = [ { level:0.72 }, { level:0.68 } ];   // fraction full
+function updateReservoirs(){
+  const supply = pumpsRunning * PUMPCFG.rated * 0.98;   // deliverable L/s
+  const net = (supply - currentDemand);                 // L/s surplus (+) or deficit (-)
+  const dLevel = net / 9000;                            // slow integration vs large storage
+  RES.forEach(r => { r.level = clamp(r.level + dLevel, 0, 1); });
+  const low = RES.some(r => r.level < 0.22);
+  if (low && !lowTankFlagged){
+    lowTankFlagged = true;
+    addAlert('sys','warn','انخفاض منسوب الخزان', `العرض الحالي (${fmt(supply,0)} ل/ث) أقل من الطلب (${fmt(currentDemand,0)} ل/ث). زِد المضخات العاملة أو فعّل التوزيع الأمثل.`, ['خزانات','طاقة']);
+  } else if (!low && lowTankFlagged && RES.every(r => r.level > 0.4)){
+    lowTankFlagged = false; resolveAlertsFor(a => a.kind==='sys' && a.title.includes('منسوب'));
+  }
+}
+
+// ============================================================
+//  3D DIGITAL TWIN — desalination → pumping → reservoirs → DMAs
+// ============================================================
+const TWIN = { built:false, active:false, pumps:[], dmaBlocks:[], resMeshes:[], flows:[], t:0 };
+function tv(a,b,c){ return new THREE.Vector3(a,b,c); }
+
+// chain node coordinates (x = flow direction)
+const T_DESAL = tv(-78,0,0), T_PUMP = tv(-38,0,0), T_MAN = tv(30,0,0);
+const T_RES = [ tv(-4,0,-15), tv(-4,0,15) ];
+const T_DMA = [ tv(66,0,-33), tv(66,0,-11), tv(66,0,11), tv(66,0,33) ];
+
+function cylinderBetween(v1, v2, radius, mat){
+  const dir = new THREE.Vector3().subVectors(v2, v1);
+  const len = dir.length();
+  const geo = new THREE.CylinderGeometry(radius, radius, len, 12);
+  const m = new THREE.Mesh(geo, mat);
+  m.position.copy(v1).add(v2).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(tv(0,1,0), dir.clone().normalize());
+  return m;
+}
+function makeFlow(scene, a, b, dmaIndex){
+  const count = 4;
+  const mat = new THREE.MeshBasicMaterial({ color:0x2dd4bf });
+  const spheres = [];
+  for (let i=0;i<count;i++){
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 8), mat.clone());
+    scene.add(s);
+    spheres.push(s);
+  }
+  TWIN.flows.push({ a:a.clone().setY(3), b:b.clone().setY(3), spheres, phase:Math.random(), dmaIndex });
+}
+
+function buildTwin(){
+  if (TWIN.built) return;
+  const host = document.getElementById('twinCanvas');
+  const w = host.clientWidth || 640, h = host.clientHeight || 400;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x081018);
+  scene.fog = new THREE.Fog(0x081018, 140, 320);
+
+  const camera = new THREE.PerspectiveCamera(46, w/h, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(w, h);
+  host.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(0xbfe4ff, 0x0a141a, 0.9));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(40, 80, 30); scene.add(dir);
+
+  // ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(320, 200),
+    new THREE.MeshStandardMaterial({ color:0x0c1a22, metalness:0.1, roughness:0.95 }));
+  ground.rotation.x = -Math.PI/2; ground.position.y = -0.5; scene.add(ground);
+  const grid = new THREE.GridHelper(320, 40, 0x14313d, 0x0f2530); grid.position.y = -0.4; scene.add(grid);
+
+  const pipeMat = new THREE.MeshStandardMaterial({ color:0x33525f, metalness:0.5, roughness:0.5 });
+  const steel   = new THREE.MeshStandardMaterial({ color:0x8aa2ad, metalness:0.6, roughness:0.4 });
+
+  // --- desalination plant ---
+  const desal = new THREE.Group();
+  const dbld = new THREE.Mesh(new THREE.BoxGeometry(20,14,26), new THREE.MeshStandardMaterial({ color:0x1c6f80, metalness:0.3, roughness:0.6 }));
+  dbld.position.set(T_DESAL.x, 7, 0); desal.add(dbld);
+  for (let i=0;i<4;i++){ // membrane racks
+    const rack = new THREE.Mesh(new THREE.CylinderGeometry(2,2,16,10), steel);
+    rack.rotation.z = Math.PI/2; rack.position.set(T_DESAL.x, 4, -9 + i*6); desal.add(rack);
+  }
+  scene.add(desal);
+
+  // --- pump station (5 pumps) ---
+  TWIN.pumps = [];
+  for (let i=0;i<5;i++){
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(3,3,7,16),
+      new THREE.MeshStandardMaterial({ color:0x2a4652, metalness:0.55, roughness:0.4 }));
+    body.position.y = 3.5; g.add(body);
+    const impeller = new THREE.Mesh(new THREE.TorusGeometry(2.2,0.5,8,16),
+      new THREE.MeshStandardMaterial({ color:0x5b9bff, emissive:0x1b3a66, metalness:0.3, roughness:0.4 }));
+    impeller.position.y = 7.2; impeller.rotation.x = Math.PI/2; g.add(impeller);
+    g.position.set(T_PUMP.x, 0, -14 + i*7);
+    scene.add(g);
+    TWIN.pumps.push({ group:g, body, impeller });
+  }
+
+  // --- reservoir tanks ---
+  TWIN.resMeshes = [];
+  T_RES.forEach((p, i) => {
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(11,11,22,28,1,true),
+      new THREE.MeshStandardMaterial({ color:0x9fb6bf, metalness:0.4, roughness:0.5, side:THREE.DoubleSide, transparent:true, opacity:0.35 }));
+    shell.position.set(p.x, 11, p.z); scene.add(shell);
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(10.4,10.4,20,28),
+      new THREE.MeshStandardMaterial({ color:0x1aa5c4, emissive:0x0a4a5a, metalness:0.1, roughness:0.3, transparent:true, opacity:0.85 }));
+    water.position.set(p.x, 8, p.z); scene.add(water);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(11,11,0.6,28), steel); cap.position.set(p.x, 22.3, p.z); scene.add(cap);
+    TWIN.resMeshes.push(water);
+  });
+
+  // manifold node
+  const man = new THREE.Mesh(new THREE.BoxGeometry(4,4,44), pipeMat); man.position.set(T_MAN.x, 2, 0); scene.add(man);
+
+  // --- DMA distribution blocks ---
+  TWIN.dmaBlocks = [];
+  T_DMA.forEach((p, i) => {
+    const block = new THREE.Mesh(new THREE.BoxGeometry(16,3,14),
+      new THREE.MeshStandardMaterial({ color:0x1f9d63, emissive:0x0a3a24, metalness:0.2, roughness:0.7 }));
+    block.position.set(p.x, 1.5, p.z); scene.add(block);
+    // little houses on the block
+    for (let k=0;k<3;k++){ const hs = new THREE.Mesh(new THREE.BoxGeometry(2.4,3,2.4), steel);
+      hs.position.set(p.x-4 + k*4, 4.5, p.z-3 + (k%2)*6); scene.add(hs); }
+    // alarm beacon
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.6,3.4,12),
+      new THREE.MeshStandardMaterial({ color:0xf0605f, emissive:0x400505, transparent:true, opacity:0 }));
+    cone.position.set(p.x, 6, p.z); scene.add(cone);
+    TWIN.dmaBlocks.push({ block, cone });
+  });
+
+  // --- pipes ---
+  scene.add(cylinderBetween(T_DESAL.clone().setY(3), T_PUMP.clone().setY(3), 1.4, pipeMat));
+  T_RES.forEach(r => scene.add(cylinderBetween(T_PUMP.clone().setY(3), r.clone().setY(6), 1.2, pipeMat)));
+  T_RES.forEach(r => scene.add(cylinderBetween(r.clone().setY(6), T_MAN.clone().setY(3), 1.2, pipeMat)));
+  T_DMA.forEach(d => scene.add(cylinderBetween(T_MAN.clone().setY(3), d.clone().setY(2), 1.0, pipeMat)));
+
+  // --- flow particles ---
+  makeFlow(scene, T_DESAL, T_PUMP, -1);
+  T_RES.forEach(r => makeFlow(scene, T_PUMP, r, -1));
+  T_DMA.forEach((d, i) => makeFlow(scene, T_MAN, d, i));
+
+  // labels via sprites
+  addSprite(scene, 'التحلية', T_DESAL.x, 18, 0);
+  addSprite(scene, 'محطة الضخ', T_PUMP.x, 12, -22);
+  addSprite(scene, 'الخزانات', T_RES[0].x, 27, 0);
+  T_DMA.forEach((d,i)=> addSprite(scene, DMAS[i].id, d.x, 9, d.z));
+
+  // camera orbit state
+  TWIN.cam = { theta:-0.9, phi:0.95, radius:150, target:tv(0,8,0) };
+  applyCam(camera);
+
+  // interaction
+  let lx=0, ly=0;
+  const el = renderer.domElement;
+  el.addEventListener('pointerdown', e => { TWIN.dragging=true; lx=e.clientX; ly=e.clientY; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointerup',   e => { TWIN.dragging=false; });
+  el.addEventListener('pointercancel', e => { TWIN.dragging=false; });
+  el.addEventListener('pointermove', e => {
+    if (!TWIN.dragging) return;
+    TWIN.cam.theta -= (e.clientX-lx)*0.006; TWIN.cam.phi = clamp(TWIN.cam.phi - (e.clientY-ly)*0.006, 0.25, 1.45);
+    lx=e.clientX; ly=e.clientY; applyCam(camera);
+  });
+  el.addEventListener('wheel', e => { e.preventDefault(); TWIN.cam.radius = clamp(TWIN.cam.radius + e.deltaY*0.12, 70, 260); applyCam(camera); }, { passive:false });
+
+  const ro = new ResizeObserver(() => {
+    const nw = host.clientWidth, nh = host.clientHeight;
+    if (nw && nh){ camera.aspect = nw/nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh); }
+  });
+  ro.observe(host);
+
+  TWIN.scene = scene; TWIN.camera = camera; TWIN.renderer = renderer; TWIN.built = true;
+}
+
+function applyCam(cam){
+  const c = TWIN.cam;
+  cam.position.set(
+    c.target.x + c.radius*Math.sin(c.phi)*Math.cos(c.theta),
+    c.target.y + c.radius*Math.cos(c.phi),
+    c.target.z + c.radius*Math.sin(c.phi)*Math.sin(c.theta));
+  cam.lookAt(c.target);
+}
+
+function addSprite(scene, text, x, y, z){
+  const cv = document.createElement('canvas'); cv.width=256; cv.height=64;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = 'rgba(8,18,26,0.7)'; ctx.fillRect(0,0,256,64);
+  ctx.fillStyle = '#cfe6ee'; ctx.font = 'bold 30px "IBM Plex Sans Arabic", sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.direction='rtl'; ctx.fillText(text,128,34);
+  const tex = new THREE.CanvasTexture(cv);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true }));
+  spr.scale.set(20,5,1); spr.position.set(x,y,z); scene.add(spr);
+}
+
+function twinFrame(){
+  if (!TWIN.built || !TWIN.active) return;
+  TWIN.t += 0.016;
+  const dm = currentDemand || 200;
+  const speed = 0.10 + clamp(dm/2600, 0, 0.35);
+
+  // pumps: running vs idle
+  TWIN.pumps.forEach((p, i) => {
+    const on = i < pumpsRunning;
+    p.impeller.material.color.setHex(on ? 0x5b9bff : 0x3a4650);
+    p.impeller.material.emissive.setHex(on ? 0x1b3a66 : 0x000000);
+    if (on) p.impeller.rotation.z += 0.35;
+  });
+
+  // reservoir water level
+  TWIN.resMeshes.forEach((w, i) => {
+    const lvl = clamp(RES[i] ? RES[i].level : 0.6, 0.05, 1);
+    w.scale.y = lvl; w.position.y = 8 - (1-lvl)*10;
+    w.material.emissive.setHex(lvl < 0.22 ? 0x5a1010 : 0x0a4a5a);
+    w.material.color.setHex(lvl < 0.22 ? 0xc4551a : 0x1aa5c4);
+  });
+
+  // DMA blocks color by leak status
+  TWIN.dmaBlocks.forEach((b, i) => {
+    const d = DMAS[i];
+    const leak = d && d._flagged;
+    const loss = d ? ((d.inflow-d.consumption)/d.inflow)*100 : 0;
+    const col = leak ? 0xf0605f : loss>12 ? 0xc9820d : 0x1f9d63;
+    b.block.material.color.setHex(col);
+    b.block.material.emissive.setHex(leak ? 0x400505 : 0x0a2a1a);
+    b.cone.material.opacity = leak ? (0.4 + 0.6*Math.abs(Math.sin(TWIN.t*4))) : 0;
+    b.cone.scale.y = leak ? 1 + 0.2*Math.sin(TWIN.t*4) : 1;
+  });
+
+  // flow particles
+  TWIN.flows.forEach(f => {
+    const leak = f.dmaIndex >= 0 && DMAS[f.dmaIndex] && DMAS[f.dmaIndex]._flagged;
+    const hex = leak ? 0xf0605f : 0x2dd4bf;
+    f.spheres.forEach((s, k) => {
+      const t = ((TWIN.t*speed) + f.phase + k/f.spheres.length) % 1;
+      s.position.lerpVectors(f.a, f.b, t);
+      s.material.color.setHex(hex);
+    });
+  });
+
+  if (!TWIN.dragging) TWIN.cam.theta += 0.0011;  // gentle auto-rotate
+  applyCam(TWIN.camera);
+  TWIN.renderer.render(TWIN.scene, TWIN.camera);
+  requestAnimationFrame(twinFrame);
+}
+
+// ---- view toggle ----
+function setView(v){
+  const is3d = v === '3d';
+  TWIN.active = is3d;
+  document.getElementById('mapwrap').hidden = is3d;
+  document.getElementById('twin3d').hidden = !is3d;
+  document.querySelector('.map-legend').hidden = is3d;
+  document.getElementById('view2d').classList.toggle('on', !is3d);
+  document.getElementById('view3d').classList.toggle('on', is3d);
+  document.getElementById('mapClock').textContent = is3d ? 'توأم رقمي' : (paused ? 'متوقف' : 'مباشر');
+  if (is3d && typeof THREE !== 'undefined'){
+    buildTwin();
+    updateEnergy();
+    requestAnimationFrame(twinFrame);
+  } else if (is3d){
+    document.getElementById('scnNote').textContent = 'تعذّر تحميل محرّك العرض ثلاثي الأبعاد.';
+  }
+}
+document.getElementById('view2d').addEventListener('click', () => setView('2d'));
+document.getElementById('view3d').addEventListener('click', () => setView('3d'));
+
+document.getElementById('pumpRange').addEventListener('input', e => {
+  pumpsRunning = +e.target.value;
+  document.getElementById('pumpRangeVal').textContent = pumpsRunning;
+  updateEnergy();
+});
+document.getElementById('optBtn').addEventListener('click', () => {
+  const opt = optimalPumps(currentDemand || 200);
+  if (!opt) return;
+  pumpsRunning = opt.p;
+  document.getElementById('pumpRange').value = opt.p;
+  document.getElementById('pumpRangeVal').textContent = opt.p;
+  updateEnergy();
+  addAlert('sys','info','تحسين توزيع الأحمال', `ضُبطت المضخات العاملة على ${opt.p} لتحقيق أدنى طاقة نوعية للطلب الحالي (${fmt(currentDemand,0)} ل/ث).`, ['طاقة','تحسين']);
+});
+document.getElementById('camBtn').addEventListener('click', () => {
+  if (TWIN.built){ TWIN.cam.theta=-0.9; TWIN.cam.phi=0.95; TWIN.cam.radius=150; applyCam(TWIN.camera); }
+});
 
 // ---- init ----
 buildMap();

@@ -1,0 +1,150 @@
+<title>NABD — مصفوفة مقارنة الحلول</title>
+<meta name="description" content="مقارنة Industrial Defender و Nozomi Networks مع طبقة NABD التشغيلية — مصفوفة قدرات ومعيار اختيار لمشروع نبض.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:#eaeff2; --panel:#ffffff; --panel-2:#f4f7f9; --sunk:#eef3f5; --ink:#12242d; --muted:#586f79;
+    --faint:#8399a2; --line:#d5e0e5; --line-strong:#bccdd4;
+    --nabd:#0e8fa8; --nabd-bg:#d6eef3; --idf:#e0691a; --idf-bg:#fbe6d6; --noz:#6d47b8; --noz-bg:#ece4f8;
+    --good:#1f9d63; --warn:#c9820d; --crit:#d23b3b;
+    --shadow:0 1px 2px rgba(16,36,46,.05),0 10px 30px rgba(16,36,46,.07);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --sunk:#0b171d; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --nabd:#2bbcd6; --nabd-bg:#103038; --idf:#f2914e; --idf-bg:#2e1c0e; --noz:#b39af0; --noz-bg:#241a3a;
+    --good:#35c98a; --warn:#e6a532; --crit:#f0605f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"] {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --sunk:#0b171d; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --nabd:#2bbcd6; --nabd-bg:#103038; --idf:#f2914e; --idf-bg:#2e1c0e; --noz:#b39af0; --noz-bg:#241a3a;
+    --good:#35c98a; --warn:#e6a532; --crit:#f0605f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; direction:rtl; background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans Arabic",system-ui,sans-serif; line-height:1.55; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; direction:ltr; unicode-bidi:isolate; }
+  .wrap { max-width:1040px; margin:0 auto; padding-block:32px; padding-inline:20px; }
+
+  .hero { display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+  .mark { width:44px; height:44px; border-radius:11px; flex:none;
+    background:radial-gradient(120% 120% at 30% 20%, var(--nabd), color-mix(in srgb,var(--nabd) 55%,#063641));
+    display:grid; place-items:center; color:#fff; box-shadow:var(--shadow); }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:1.6px; text-transform:uppercase; color:var(--nabd); font-weight:600; }
+  h1 { font-size:clamp(22px,3.4vw,30px); margin:.1em 0; font-weight:700; }
+  .lede { color:var(--muted); font-size:14px; max-width:72ch; }
+  .themebtn { margin-inline-start:auto; width:38px; height:38px; border-radius:9px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink); cursor:pointer; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:18px clamp(14px,2.4vw,24px); margin-block:16px; }
+  h2 { font-size:15px; margin:0 0 14px; font-weight:700; display:flex; align-items:center; gap:9px; }
+  h2 .b { width:10px; height:10px; border-radius:3px; }
+
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; min-width:560px; }
+  th,td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top; }
+  thead th { font-size:12px; font-weight:700; position:sticky; top:0; background:var(--panel); }
+  th.dim { width:30%; }
+  th.idf { color:var(--idf); } th.noz { color:var(--noz); } th.nabd { color:var(--nabd); }
+  td.dim { font-weight:600; }
+  tr:last-child td { border-bottom:0; }
+  .rate { font-weight:700; }
+  .rate.y { color:var(--good); } .rate.p { color:var(--warn); } .rate.n { color:var(--crit); }
+  .cell-note { display:block; font-size:11px; color:var(--muted); font-weight:400; margin-top:2px; }
+  .colhead { display:flex; flex-direction:column; gap:2px; }
+  .colhead small { font-family:"IBM Plex Mono",monospace; font-size:9.5px; color:var(--muted); font-weight:500; }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:12px; }
+  .legend b { color:var(--ink); }
+
+  .pos { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .pcard { border:1px solid var(--line); border-radius:11px; padding:13px 15px; }
+  .pcard.idf { background:color-mix(in srgb,var(--idf-bg) 50%,transparent); border-color:color-mix(in srgb,var(--idf) 30%,var(--line)); }
+  .pcard.noz { background:color-mix(in srgb,var(--noz-bg) 50%,transparent); border-color:color-mix(in srgb,var(--noz) 30%,var(--line)); }
+  .pcard.nabd { background:color-mix(in srgb,var(--nabd-bg) 50%,transparent); border-color:color-mix(in srgb,var(--nabd) 35%,var(--line)); }
+  .pcard h3 { margin:0 0 4px; font-size:13.5px; }
+  .pcard .tag { font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .pcard.idf .tag { color:var(--idf); } .pcard.noz .tag { color:var(--noz); } .pcard.nabd .tag { color:var(--nabd); }
+  .pcard p { margin:5px 0 0; font-size:12px; color:var(--muted); }
+
+  ul.pick { margin:8px 0 0; padding-inline-start:20px; }
+  ul.pick li { font-size:13.5px; margin-bottom:7px; }
+  ul.pick b { color:var(--nabd); }
+  .foot { color:var(--faint); font-size:11.5px; margin-top:6px; line-height:1.7; }
+  @media (max-width:720px){ .pos { grid-template-columns:1fr; } }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="mark" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c3.6 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0c0-3.1 2.4-6.3 6-10.5Z"/></svg></div>
+    <div>
+      <div class="eyebrow">نبض NABD · INV-2026-001 · تحليل المنافسين (G-05)</div>
+      <h1>مصفوفة مقارنة الحلول</h1>
+      <p class="lede">مقارنة موضوعية بين مزوّدَي أمن OT — <b style="color:var(--idf)">Industrial Defender</b> و<b style="color:var(--noz)">Nozomi Networks</b> — مع موضعة طبقة <b style="color:var(--nabd)">NABD</b> التشغيلية فوقهما. الهدف: اختيار طبقة الأمن، لا استبدال NABD بها.</p>
+    </div>
+    <button class="themebtn" id="themeBtn" title="تبديل السمة" aria-label="تبديل السمة">◐</button>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> مصفوفة القدرات</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th class="dim">البُعد</th>
+          <th class="idf"><div class="colhead">Industrial Defender<small>OT security · compliance</small></div></th>
+          <th class="noz"><div class="colhead">Nozomi Networks<small>network monitoring · AI</small></div></th>
+          <th class="nabd"><div class="colhead">NABD<small>طبقة تشغيلية</small></div></th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="dim">التركيز الأساسي</td><td>التهيئة والامتثال (أصلها الطاقة)</td><td>المراقبة السلبية وكشف التهديد</td><td>الذكاء التشغيلي والقرار المائي</td></tr>
+          <tr><td class="dim">جرد الأصول</td><td><span class="rate y">✅</span><span class="cell-note">وكيل/استعلام + سلبي</span></td><td><span class="rate y">✅</span><span class="cell-note">سلبي + نشِط + DPI + AI</span></td><td><span class="rate p">🟡</span><span class="cell-note">يستهلكه من الطبقة الأمنية</span></td></tr>
+          <tr><td class="dim">إدارة التهيئة والتغيير</td><td><span class="rate y">✅</span><span class="cell-note">قوة أساسية</span></td><td><span class="rate p">🟡</span></td><td><span class="rate n">❌</span></td></tr>
+          <tr><td class="dim">الامتثال والسياسات</td><td><span class="rate y">✅</span><span class="cell-note">قوة أساسية (قريب من OTCC)</span></td><td><span class="rate p">🟡</span><span class="cell-note">تقارير</span></td><td><span class="rate n">❌</span></td></tr>
+          <tr><td class="dim">كشف الشذوذ/التهديدات (AI)</td><td><span class="rate p">🟡</span></td><td><span class="rate y">✅</span><span class="cell-note">قوة أساسية · شبكة+نقاط ٣٦٠°</span></td><td><span class="rate n">❌</span><span class="cell-note">يستقبل النتيجة</span></td></tr>
+          <tr><td class="dim">إدارة الثغرات ودورة الحياة</td><td><span class="rate y">✅</span></td><td><span class="rate y">✅</span><span class="cell-note">CVE + Firmware + EoS</span></td><td><span class="rate p">🟡</span><span class="cell-note">يحوّلها لأمر عمل</span></td></tr>
+          <tr><td class="dim">طريقة الجمع</td><td>وكيل/تهيئة أساساً</td><td>سلبي شبكي أساساً</td><td>قراءة OPC‑UA/Historian</td></tr>
+          <tr style="background:var(--nabd-bg)"><td class="dim"><b>كشف الفاقد NRW (موازنة كتلية)</b></td><td><span class="rate n">❌</span></td><td><span class="rate n">❌</span></td><td><span class="rate y">✅</span><span class="cell-note">تفرّد</span></td></tr>
+          <tr style="background:var(--nabd-bg)"><td class="dim"><b>ربط الأثر التشغيلي (كمية/جودة)</b></td><td><span class="rate n">❌</span></td><td><span class="rate n">❌</span></td><td><span class="rate y">✅</span><span class="cell-note">جوهر القيمة</span></td></tr>
+          <tr style="background:var(--nabd-bg)"><td class="dim"><b>تحسين طاقة الضخ (kWh/m³)</b></td><td><span class="rate n">❌</span></td><td><span class="rate n">❌</span></td><td><span class="rate y">✅</span></td></tr>
+          <tr style="background:var(--nabd-bg)"><td class="dim"><b>أوامر عمل · مياه مستردّة · توأم 3D</b></td><td><span class="rate n">❌</span></td><td><span class="rate n">❌</span></td><td><span class="rate y">✅</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend"><span><b class="rate y">✅</b> قوة</span><span><b class="rate p">🟡</b> جزئي</span><span><b class="rate n">❌</b> غير مغطّى / ليس وظيفته</span></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> الموضعة — لكلٍّ دوره</h2>
+    <div class="pos">
+      <div class="pcard idf"><div class="tag">طبقة أمن (خيار أ)</div><h3>Industrial Defender</h3><p>الأنسب حين تكون الأولوية <b>الامتثال وإدارة التهيئة والتغيير</b> — قريبة من متطلبات OTCC وسجل التغيير.</p></div>
+      <div class="pcard noz"><div class="tag">طبقة أمن (خيار ب)</div><h3>Nozomi Networks</h3><p>الأنسب حين تكون الأولوية <b>الرؤية الشبكية وكشف التهديدات والشذوذ بالـ AI</b> عبر بيئة OT/IoT واسعة.</p></div>
+      <div class="pcard nabd"><div class="tag">الطبقة العليا (ثابتة)</div><h3>NABD</h3><p>محايد تجاه المورّد — يتكامل مع أيّهما عبر API/Syslog ويحوّل مخرجاته إلى <b>قرار مائي</b>.</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> معيار الاختيار</h2>
+    <ul class="pick">
+      <li>الدافع <b>الامتثال + إدارة التغيير</b> (توافق OTCC/سجل التغيير) → <b style="color:var(--idf)">Industrial Defender</b> أقوى.</li>
+      <li>الدافع <b>كشف التهديدات + الرؤية الشبكية بالـ AI</b> → <b style="color:var(--noz)">Nozomi</b> أقوى.</li>
+      <li>بيئات كبيرة قد <b>تجمع بينهما</b> (تهيئة/امتثال + كشف شبكي).</li>
+      <li>في كل الحالات: <b>NABD يبقى الطبقة العليا</b> — لا تعتمد الطبقة التشغيلية على اختيار المورّد الأمني.</li>
+    </ul>
+    <p class="foot"><strong>ملاحظة:</strong> Industrial Defender و Nozomi Networks علامتان لمالكيهما؛ القدرات من موادهما الرسمية/الواجهات للتوضيح المقارن، وقد تتغيّر بين الإصدارات — تُحقَّق مقابل عرض المورّد الرسمي وقائمة أسئلة التقييم (G‑06) قبل القرار. مخرَج المهمة G‑05.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const root=document.documentElement;
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+})();
+</script>

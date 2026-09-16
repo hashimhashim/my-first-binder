@@ -1,0 +1,261 @@
+<title>NABD × Nozomi — التكامل وخطة الطريق</title>
+<meta name="description" content="حزمة تكامل نبض NABD مع Nozomi Networks: تقسيم الأدوار، ربط القدرات، معمارية الإنفاذ، إدارة الثغرات، وخطة طريق مرحلية ضمن OTCC.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:#eaeff2; --panel:#ffffff; --panel-2:#f4f7f9; --sunk:#eef3f5; --ink:#12242d; --muted:#586f79;
+    --faint:#8399a2; --line:#d5e0e5; --line-strong:#bccdd4;
+    --nabd:#0e8fa8; --nabd-bg:#d6eef3; --nozomi:#6d47b8; --nozomi-bg:#ece4f8;
+    --good:#1f9d63; --warn:#c9820d; --crit:#d23b3b;
+    --shadow:0 1px 2px rgba(16,36,46,.05),0 10px 30px rgba(16,36,46,.07);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --sunk:#0b171d; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --nabd:#2bbcd6; --nabd-bg:#103038; --nozomi:#b39af0; --nozomi-bg:#241a3a;
+    --good:#35c98a; --warn:#e6a532; --crit:#f0605f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"] {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --sunk:#0b171d; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --nabd:#2bbcd6; --nabd-bg:#103038; --nozomi:#b39af0; --nozomi-bg:#241a3a;
+    --good:#35c98a; --warn:#e6a532; --crit:#f0605f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; direction:rtl; background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans Arabic",system-ui,sans-serif; line-height:1.6; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; direction:ltr; unicode-bidi:isolate; }
+  .wrap { max-width:1040px; margin:0 auto; padding-block:34px; padding-inline:20px; }
+
+  .hero { display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+  .mark { width:46px; height:46px; border-radius:11px; flex:none;
+    background:radial-gradient(120% 120% at 30% 20%, var(--nabd), color-mix(in srgb,var(--nabd) 55%,#063641));
+    display:grid; place-items:center; color:#fff; box-shadow:var(--shadow); }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:1.6px; text-transform:uppercase; color:var(--nabd); font-weight:600; }
+  h1 { font-size:clamp(23px,3.6vw,32px); margin:.1em 0; font-weight:700; text-wrap:balance; }
+  .thesis { font-size:clamp(15px,2.1vw,17px); color:var(--muted); max-width:72ch; }
+  .thesis b { color:var(--ink); }
+  .themebtn { margin-inline-start:auto; width:38px; height:38px; border-radius:9px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink); cursor:pointer; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:20px clamp(16px,2.6vw,26px); margin-block:18px; }
+  h2 { font-size:16px; margin:0 0 3px; font-weight:700; display:flex; align-items:center; gap:9px; }
+  h2 .b { width:10px; height:10px; border-radius:3px; flex:none; }
+  .sub { color:var(--faint); font-size:12.5px; margin:0 0 16px; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:right; padding:10px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:600; }
+  tr:last-child td { border-bottom:0; }
+  .chip { display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; padding:1px 8px; border-radius:999px; }
+  .chip.nabd { background:var(--nabd-bg); color:var(--nabd); }
+  .chip.nozomi { background:var(--nozomi-bg); color:var(--nozomi); }
+
+  /* division of labor */
+  .layers { display:grid; gap:10px; }
+  .layer { display:grid; grid-template-columns:130px 1fr; gap:14px; align-items:center; padding:13px 15px; border-radius:11px; border:1px solid var(--line); }
+  .layer.n { background:color-mix(in srgb,var(--nabd-bg) 55%,transparent); border-color:color-mix(in srgb,var(--nabd) 35%,var(--line)); }
+  .layer.z { background:color-mix(in srgb,var(--nozomi-bg) 55%,transparent); border-color:color-mix(in srgb,var(--nozomi) 35%,var(--line)); }
+  .layer .who { font-weight:700; font-size:13px; }
+  .layer .who small { display:block; font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--muted); font-weight:500; margin-top:2px; }
+  .layer .what { font-size:13px; color:var(--ink); }
+
+  /* pillars */
+  .pillars { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .pillar { background:var(--panel); padding:13px 14px; }
+  .pillar .n { font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--nozomi); font-weight:600; }
+  .pillar h3 { font-size:13px; margin:4px 0 4px; }
+  .pillar p { font-size:11.5px; color:var(--muted); margin:0; }
+
+  /* SVG loop caption */
+  figure { margin:0; }
+  figure svg { display:block; width:100%; height:auto; color:var(--ink); }
+  figcaption { color:var(--muted); font-size:12px; margin-top:10px; }
+
+  /* roadmap */
+  .phase { display:grid; grid-template-columns:96px 1fr; gap:16px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .phase:last-child { border-bottom:0; }
+  .phase .tag { font-family:"IBM Plex Mono",monospace; font-weight:700; font-size:12px; color:var(--nabd); }
+  .phase .tag small { display:block; color:var(--faint); font-weight:500; margin-top:3px; }
+  .phase h3 { font-size:14px; margin:0 0 5px; }
+  .phase p { font-size:13px; color:var(--muted); margin:0 0 6px; }
+  .phase .kpi { font-family:"IBM Plex Mono",monospace; font-size:11px; }
+  .phase .kpi b { color:var(--good); }
+
+  .guard { background:color-mix(in srgb,var(--warn) 12%,var(--panel)); border:1px solid color-mix(in srgb,var(--warn) 40%,var(--line)); }
+  ul.tick { margin:6px 0 0; padding-inline-start:20px; }
+  ul.tick li { font-size:13.5px; margin-bottom:6px; }
+  ul.tick b { color:var(--nabd); }
+  .foot { color:var(--faint); font-size:11.5px; margin-top:8px; line-height:1.7; }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="mark" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c3.6 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0c0-3.1 2.4-6.3 6-10.5Z"/></svg>
+    </div>
+    <div>
+      <div class="eyebrow">حزمة تكامل · INV-2026-001</div>
+      <h1>نبض NABD × Nozomi Networks</h1>
+      <p class="thesis"><b>Nozomi</b> ترى الأصول والتهديدات في شبكة OT؛ <b>NABD</b> يحوّل تلك الرؤية إلى <b>قرار تشغيلي</b> — كشف الفاقد، ترشيد الطاقة، وربط الشذوذ السيبراني بأثره على كمية وجودة المياه. تكامل قراءة‑فقط ضمن حدود OTCC.</p>
+    </div>
+    <button class="themebtn" id="themeBtn" title="تبديل السمة" aria-label="تبديل السمة">◐</button>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> تقسيم الأدوار — لا ازدواجية</h2>
+    <p class="sub">كل طبقة لها مالك واحد؛ NABD هو الطبقة العليا التي لا يقدّمها أمن OT وحده.</p>
+    <div class="layers">
+      <div class="layer z"><div class="who">Nozomi<small>Guardian / Vantage</small></div><div class="what">رؤية الأصول، طلاقة البروتوكولات (DPI)، كشف الشذوذ والتهديدات، الثغرات ودورة حياة الأصل.</div></div>
+      <div class="layer"><div class="who">OPC-UA / Historian<small>read-only</small></div><div class="what">البيانات التشغيلية: الضغط، التدفق، حالة الأصول — قراءة فقط.</div></div>
+      <div class="layer n"><div class="who">NABD<small>الطبقة العليا</small></div><div class="what">الذكاء التشغيلي: موازنة كتلية، كشف الفاقد، طبقة الثقة، توزيع أحمال المضخات، وربط الحدث السيبراني بالأثر التشغيلي → أمر عمل.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nozomi)"></span> نموذج النتائج الثلاثي — وطبقة NABD فوقه</h2>
+    <p class="sub">أركان Nozomi الثلاث (تحديد ← كشف ← استجابة)، وما يضيفه NABD في كل ركن.</p>
+    <div class="pillars">
+      <div class="pillar"><div class="n">01 · IDENTIFY</div><h3>تحديد الأصول والثغرات الحرجة</h3><p><b>Nozomi:</b> جرد + CVE + دورة حياة.<br><b>NABD:</b> أي أصل حرِج تشغيلياً؟ (أي DMA / أثر على الكمية).</p></div>
+      <div class="pillar"><div class="n">02 · DETECT</div><h3>كشف التهديدات والشذوذ العملياتي</h3><p><b>Nozomi:</b> أساس سلوكي + AI (شبكة+نقاط طرفية ٣٦٠°).<br><b>NABD:</b> طبقة الثقة تؤكد أنه حدث حقيقي لا حساس مزيّف.</p></div>
+      <div class="pillar"><div class="n">03 · RESPOND</div><h3>استجابة سريعة للمخاطر الناشئة</h3><p><b>Nozomi:</b> كتيّبات + Threat Intelligence (MTTD أقل).<br><b>NABD:</b> ربط الأثر التشغيلي + أمر عمل ميداني.</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nozomi)"></span> قدرات Nozomi وكيف يستهلكها NABD</h2>
+    <p class="sub">مبنية على صفحتي الحل (جرد الأصول + مراقبة الشبكة) واللقطات الفعلية من Vantage.</p>
+    <table>
+      <thead><tr><th>قدرة Nozomi</th><th>ما تقدّمه</th><th>استهلاك NABD</th></tr></thead>
+      <tbody>
+        <tr><td><b>الاكتشاف والجرد</b></td><td>اكتشاف سلبي + نشِط، جرد غني (المصنّع/الطراز/المنطقة). مثال: ٩٠١ أصل — IT/OT/IoT.</td><td>مصدر جرد طبقة أمن OT</td></tr>
+        <tr><td><b>Deep Packet Inspection</b></td><td>طلاقة بروتوكولات صناعية (Modbus, DNP3, IEC104, MMS, OPC-UA…).</td><td>تمييز الكتابة غير المصرّح بها</td></tr>
+        <tr><td><b>محرّك AI/ML</b></td><td>خطوط أساس سلوكية وترتيب المخاطر (مثل درجة أصل 56/GuardLogix).</td><td>تغذية <b>طبقة الثقة</b> للتأكد أن الحدث حقيقي</td></tr>
+        <tr><td><b>كشف التهديدات والاستجابة</b></td><td>كشف على <b>الشبكة والنقاط الطرفية معاً (٣٦٠°)</b> + تغذية Threat Intelligence لتقليل زمن الكشف (MTTD). مثال: رصد نشاط Industroyer.</td><td>ربط الأثر التشغيلي + أمر عمل</td></tr>
+        <tr><td><b>الثغرات ودورة الحياة</b></td><td>CVE لكل أصل، نسخة Firmware، End of Sale/Support.</td><td>تنبيه «تحديث متاح/أصل مكشوف»</td></tr>
+        <tr><td><b>لوحات + كتيّبات + جنائي</b></td><td>Vantage IQ، استعلامات، Playbooks، أدوات تحقيق.</td><td>تنسيق الاستجابة عبر SIEM/SOAR</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nozomi)"></span> ركائز الرؤية الخمس ↦ خطتنا</h2>
+    <div class="pillars">
+      <div class="pillar"><div class="n">Pillar 1</div><h3>مستشعرات Endpoint‑to‑Air</h3><p>Guardian سلبي على SPAN/TAP — م١</p></div>
+      <div class="pillar"><div class="n">Pillar 2</div><h3>جمع البيانات</h3><p>سلبي+نشِط+طرف ثالث — م١</p></div>
+      <div class="pillar"><div class="n">Pillar 3</div><h3>سياق قابل للتنفيذ (DPI)</h3><p>فهم سلوك الأصل — م١–م٣</p></div>
+      <div class="pillar"><div class="n">Pillar 4</div><h3>خطوط أساس سلوكية</h3><p>يغذّي طبقة الثقة — م٢–م٣</p></div>
+      <div class="pillar"><div class="n">Pillar 5</div><h3>Asset Intelligence</h3><p>مطابقة الثغرات — م٤</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> ما لدينا · ما ينقص · أين نتفوّق</h2>
+    <p class="sub">تحليل الفجوة بين Nozomi وNABD — لتجنّب الازدواجية وإبراز التفرّد.</p>
+    <table>
+      <thead><tr><th>القدرة</th><th>Nozomi</th><th>NABD الآن</th><th>الحكم</th></tr></thead>
+      <tbody>
+        <tr><td>جرد أصول OT آلي</td><td>✅ إنتاجي (DPI)</td><td>🟡 نموذج مبسّط</td><td><span class="chip nozomi">نتكامل</span></td></tr>
+        <tr><td>طلاقة البروتوكولات</td><td>✅ عميق</td><td>🟡 تسمية فقط</td><td><span class="chip nozomi">Nozomi أفضل</span></td></tr>
+        <tr><td>كشف الشذوذ (AI · ٣٦٠°)</td><td>✅</td><td>🟡 محاكاة</td><td><span class="chip nozomi">Nozomi أفضل</span></td></tr>
+        <tr><td>الثغرات + Firmware + دورة الحياة</td><td>✅</td><td>❌</td><td><span class="chip nozomi">ناقص لدينا → من Nozomi</span></td></tr>
+        <tr><td>كتيّبات + جنائي + SIEM</td><td>✅</td><td>🟡 سجل بسيط</td><td><span class="chip nozomi">Nozomi أفضل</span></td></tr>
+        <tr><td>تكامل الجدار الناري / الإنفاذ</td><td>✅</td><td>❌ (مخطَّط م٣)</td><td><span class="chip nozomi">نبنيه بالتكامل</span></td></tr>
+        <tr><td><b>كشف الفاقد NRW (موازنة كتلية)</b></td><td>❌ ليست وظيفتها</td><td>✅</td><td><span class="chip nabd">NABD يتفوّق</span></td></tr>
+        <tr><td><b>طبقة الثقة (حقيقي vs مزيّف)</b></td><td>🟡 شذوذ فقط</td><td>✅</td><td><span class="chip nabd">NABD يتفوّق</span></td></tr>
+        <tr><td><b>ربط الأثر التشغيلي (كمية/جودة)</b></td><td>❌</td><td>✅</td><td><span class="chip nabd">جوهر القيمة</span></td></tr>
+        <tr><td><b>تحسين طاقة الضخ (kWh/m³)</b></td><td>❌</td><td>✅</td><td><span class="chip nabd">NABD يتفوّق</span></td></tr>
+        <tr><td><b>أوامر عمل · مياه مستردّة · 3D</b></td><td>❌</td><td>✅</td><td><span class="chip nabd">NABD يتفوّق</span></td></tr>
+      </tbody>
+    </table>
+    <p class="foot"><strong>الخلاصة:</strong> لا نبني ما تُتقنه Nozomi (الأمن والرؤية) — <b>نتكامل معها</b>؛ ونأخذ منها ما ينقصنا (الثغرات والإنفاذ)؛ وتفرّدنا في الطبقة العليا: تحويل الأمن والتشغيل إلى <b>قرار مائي</b>.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> معمارية التكامل — حلقة الكشف والإنفاذ</h2>
+    <figure>
+      <svg viewBox="0 0 900 300" role="img" aria-label="حلقة: Nozomi تكتشف، الجدار الناري/NAC يُنفّذ عند حدّ IDMZ، SIEM يوثّق، وNABD يربط الأثر التشغيلي — كلها قراءة فقط من OT بلا تحكم عكسي.">
+        <defs><marker id="a" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="var(--muted)"/></marker></defs>
+        <!-- OT zone -->
+        <rect x="24" y="120" width="180" height="70" rx="10" fill="color-mix(in srgb,var(--nabd-bg) 40%,transparent)" stroke="var(--nabd)" stroke-width="1.5"/>
+        <text x="114" y="150" text-anchor="middle" font-family="IBM Plex Sans Arabic" font-size="13" font-weight="700" fill="currentColor">شبكة OT</text>
+        <text x="114" y="170" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--muted)">PLC · RTU · حساسات</text>
+        <!-- Nozomi Guardian -->
+        <rect x="250" y="30" width="180" height="66" rx="10" fill="color-mix(in srgb,var(--nozomi-bg) 55%,transparent)" stroke="var(--nozomi)" stroke-width="1.5"/>
+        <text x="340" y="58" text-anchor="middle" font-family="IBM Plex Sans Arabic" font-size="13" font-weight="700" fill="var(--nozomi)">Nozomi Guardian</text>
+        <text x="340" y="76" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--muted)">كشف سلبي · DPI · AI</text>
+        <!-- Firewall/NAC -->
+        <rect x="250" y="210" width="180" height="66" rx="10" fill="var(--panel)" stroke="var(--warn)" stroke-width="1.5"/>
+        <text x="340" y="238" text-anchor="middle" font-family="IBM Plex Sans Arabic" font-size="13" font-weight="700" fill="currentColor">جدار ناري / NAC</text>
+        <text x="340" y="256" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--warn)">إنفاذ عند حدّ IDMZ</text>
+        <!-- SIEM -->
+        <rect x="480" y="210" width="170" height="66" rx="10" fill="var(--panel)" stroke="var(--line-strong)" stroke-width="1.5"/>
+        <text x="565" y="238" text-anchor="middle" font-family="IBM Plex Sans Arabic" font-size="13" font-weight="700" fill="currentColor">SIEM (Wazuh)</text>
+        <text x="565" y="256" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--muted)">توثيق · تنسيق</text>
+        <!-- NABD -->
+        <rect x="686" y="120" width="190" height="70" rx="10" fill="color-mix(in srgb,var(--nabd-bg) 55%,transparent)" stroke="var(--nabd)" stroke-width="2.5"/>
+        <text x="781" y="148" text-anchor="middle" font-family="IBM Plex Sans Arabic" font-size="14" font-weight="700" fill="var(--nabd)">NABD</text>
+        <text x="781" y="167" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--muted)">أثر تشغيلي · أمر عمل</text>
+        <!-- arrows -->
+        <line x1="204" y1="140" x2="250" y2="70" stroke="var(--muted)" stroke-width="2" marker-end="url(#a)"/>
+        <text x="212" y="98" font-family="IBM Plex Mono" font-size="10" fill="var(--muted)">مرآة</text>
+        <line x1="340" y1="96" x2="340" y2="210" stroke="var(--muted)" stroke-width="2" marker-end="url(#a)"/>
+        <text x="348" y="158" font-family="IBM Plex Mono" font-size="10" fill="var(--muted)">تنبيه</text>
+        <line x1="430" y1="243" x2="480" y2="243" stroke="var(--muted)" stroke-width="2" marker-end="url(#a)"/>
+        <line x1="430" y1="63" x2="686" y2="140" stroke="var(--nozomi)" stroke-width="2" marker-end="url(#a)"/>
+        <text x="520" y="92" font-family="IBM Plex Mono" font-size="10" fill="var(--nozomi)">API / Syslog</text>
+        <line x1="650" y1="243" x2="710" y2="190" stroke="var(--muted)" stroke-width="2" marker-end="url(#a)"/>
+      </svg>
+      <figcaption>Nozomi (سلبي) يكتشف الشذوذ ← يُرسل تنبيهاً إلى الجدار الناري/NAC (حظر عند حدّ IDMZ، بموافقة بشرية للحرِج) وإلى SIEM (توثيق) وإلى NABD (ربط الأثر التشغيلي وإصدار أمر العمل). لا مسار تحكم عكسي نحو OT.</figcaption>
+    </figure>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> إدارة الثغرات والتحديثات</h2>
+    <p class="sub">Nozomi تُظهر لكل أصل: نسخة Firmware · End of Sale/Support · CVE، وتصنّف المعالجة إلى <b>برمجية / اتصالات / عتاد</b> مع ترتيب الأصول الحرجة — والإشعار آلي، والتطبيق يدوي محكوم.</p>
+    <p class="mono" style="font-size:12px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:nowrap;">
+      CISA ICS + PSIRT + CVE ─→ Nozomi (مطابقة الجرد) ─→ NABD: تنبيه «تحديث متاح» ─→ أمر عمل صيانة (نافذة محكومة) │ ترقيع افتراضي عبر الجدار الناري مؤقتاً
+    </p>
+  </div>
+
+  <div class="card">
+    <h2><span class="b" style="background:var(--nabd)"></span> خطة الطريق</h2>
+    <p class="sub">ابدأ بمحطة واحدة · قِس بمؤشر واحد · ثم وسّع.</p>
+    <div class="phase"><div class="tag">م٠<small>٢–٤ أسابيع</small></div><div><h3>التهيئة والحوكمة</h3><p>موافقة أمن OT (قراءة‑فقط/OTCC) · اختيار محطة تجريبية · نطاق معتمد.</p><div class="kpi">KPI: <b>الموافقات مكتملة</b></div></div></div>
+    <div class="phase"><div class="tag">م١<small>٣–٤ أسابيع</small></div><div><h3>الرؤية</h3><p>Nozomi Guardian سلبي على SPAN/TAP + قناة OPC‑UA/Historian قراءة‑فقط في IDMZ.</p><div class="kpi">KPI: <b>٪ الأصول المكتشفة</b></div></div></div>
+    <div class="phase"><div class="tag">م٢<small>٤–٦ أسابيع</small></div><div><h3>الذكاء التشغيلي (NABD)</h3><p>خطوط أساس MNF لكل DMA · كشف الفاقد + طبقة الثقة.</p><div class="kpi">KPI: <b>نسبة الفاقد NRW %</b></div></div></div>
+    <div class="phase"><div class="tag">م٣<small>٤ أسابيع</small></div><div><h3>الإنفاذ والتكامل</h3><p>Nozomi → جدار ناري/NAC عند حدّ IDMZ (إنسان في الحلقة) + تصدير إلى SIEM وطبقة الثقة.</p><div class="kpi">KPI: <b>زمن الاحتواء</b></div></div></div>
+    <div class="phase"><div class="tag">م٤<small>٣ أسابيع</small></div><div><h3>إدارة الثغرات</h3><p>تغذية CISA/PSIRT/CVE ← مطابقة جرد Nozomi ← تنبيه وأمر عمل صيانة.</p><div class="kpi">KPI: <b>٪ الأصول المكشوفة · زمن المعالجة</b></div></div></div>
+    <div class="phase"><div class="tag">م٥<small>مستمرة</small></div><div><h3>التوسعة والطاقة</h3><p>تعميم على المناطق · تحسين أحمال المضخات · ترقية إلى Data Diode فعلي.</p><div class="kpi">KPI: <b>kWh/m³ · ساعات التوقف</b></div></div></div>
+  </div>
+
+  <div class="card guard">
+    <h2><span class="b" style="background:var(--warn)"></span> ضوابط OTCC (ثابتة)</h2>
+    <ul class="tick">
+      <li><b>قراءة فقط</b> من OT — لا تحكم عكسي في أي مرحلة.</li>
+      <li><b>إنسان في الحلقة</b> لأي حظر يمسّ الطبقات الحرجة (L1–L0) ولأي تطبيق Firmware.</li>
+      <li>الإنفاذ التلقائي عند <b>حدّ IDMZ/IT</b> فقط، لا على حلقات التحكم الحية.</li>
+      <li><b>مصدر حقيقة واحد:</b> Nozomi للأصول والأمن، Historian للتشغيل، NABD للذكاء.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <p class="foot">
+      <strong>ملاحظة:</strong> Nozomi Networks وVantage وGuardian علامات لمالكها؛ القدرات المذكورة مستمدة من موادها الرسمية للتوضيح المعماري. NABD طبقة مستقلة تتكامل معها ولا تستبدلها. مرتبطة بسجل الابتكار INV‑2026‑001 والمخطط المعماري لـ OPC‑UA/Historian. أرقام Nozomi (٩٠١ أصل، درجة ٥٦…) أمثلة من لقطات المنصة لا بيانات شبكتك.
+    </p>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const root=document.documentElement;
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+})();
+</script>

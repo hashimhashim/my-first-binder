@@ -1,0 +1,186 @@
+<title>NABD — توزيع المهام على الفِرق</title>
+<meta name="description" content="قائمة مهام مشروع نبض NABD موزّعة على الفِرق حسب المراحل، مع المسؤول والأولوية والمُخرَج.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:#eaeff2; --panel:#ffffff; --panel-2:#f4f7f9; --sunk:#eef3f5; --ink:#12242d; --muted:#586f79;
+    --faint:#8399a2; --line:#d5e0e5; --line-strong:#bccdd4;
+    --accent:#0e8fa8; --accent-soft:#d6eef3;
+    --gov:#6d47b8; --sec:#d23b3b; --dev:#0e8fa8; --ops:#1f9d63; --mnt:#c9820d;
+    --p1:#d23b3b; --p2:#c9820d; --p3:#1f9d63;
+    --shadow:0 1px 2px rgba(16,36,46,.05),0 10px 30px rgba(16,36,46,.07);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --sunk:#0b171d; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --accent:#2bbcd6; --accent-soft:#103038;
+    --gov:#b39af0; --sec:#f0605f; --dev:#2bbcd6; --ops:#35c98a; --mnt:#e6a532;
+    --p1:#f0605f; --p2:#e6a532; --p3:#35c98a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"] {
+    --ground:#081116; --panel:#0f1d25; --panel-2:#13232c; --sunk:#0b171d; --ink:#dbe8ed; --muted:#8ba3ad;
+    --faint:#5e7580; --line:#1d3540; --line-strong:#294753;
+    --accent:#2bbcd6; --accent-soft:#103038;
+    --gov:#b39af0; --sec:#f0605f; --dev:#2bbcd6; --ops:#35c98a; --mnt:#e6a532;
+    --p1:#f0605f; --p2:#e6a532; --p3:#35c98a;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; direction:rtl; background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Sans Arabic",system-ui,sans-serif; line-height:1.55; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; direction:ltr; unicode-bidi:isolate; }
+  .wrap { max-width:1060px; margin:0 auto; padding-block:32px; padding-inline:20px; }
+
+  .hero { display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+  .mark { width:44px; height:44px; border-radius:11px; flex:none;
+    background:radial-gradient(120% 120% at 30% 20%, var(--accent), color-mix(in srgb,var(--accent) 55%,#063641));
+    display:grid; place-items:center; color:#fff; box-shadow:var(--shadow); }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:1.6px; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  h1 { font-size:clamp(22px,3.4vw,30px); margin:.1em 0; font-weight:700; }
+  .lede { color:var(--muted); font-size:14px; max-width:70ch; }
+  .themebtn { margin-inline-start:auto; width:38px; height:38px; border-radius:9px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink); cursor:pointer; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin:6px 0 20px; font-size:12px; }
+  .team-chip { display:inline-flex; align-items:center; gap:7px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:var(--panel); font-weight:600; }
+  .team-chip i { width:11px; height:11px; border-radius:3px; }
+
+  .team { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); margin-block:16px; overflow:hidden; }
+  .team > .th { display:flex; align-items:center; gap:11px; padding:13px 18px; border-bottom:1px solid var(--line); }
+  .team > .th .sw { width:14px; height:14px; border-radius:4px; flex:none; }
+  .team > .th h2 { margin:0; font-size:15px; font-weight:700; }
+  .team > .th .role { font-size:11.5px; color:var(--muted); }
+  .team > .th .cnt { margin-inline-start:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--faint); }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:right; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:600; background:var(--panel-2); }
+  tr:last-child td { border-bottom:0; }
+  td.id { font-family:"IBM Plex Mono",monospace; color:var(--faint); white-space:nowrap; font-size:11px; }
+  td.ph { font-family:"IBM Plex Mono",monospace; font-weight:600; white-space:nowrap; }
+  .pri { font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:700; padding:1px 7px; border-radius:5px; white-space:nowrap; }
+  .pri.p1 { background:color-mix(in srgb,var(--p1) 16%,transparent); color:var(--p1); }
+  .pri.p2 { background:color-mix(in srgb,var(--p2) 16%,transparent); color:var(--p2); }
+  .pri.p3 { background:color-mix(in srgb,var(--p3) 16%,transparent); color:var(--p3); }
+  .supp { font-size:10.5px; color:var(--faint); }
+  .out { color:var(--muted); font-size:12px; }
+
+  .note { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-top:18px; font-size:12.5px; color:var(--muted); }
+  .note b { color:var(--ink); }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="mark" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5c3.6 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0c0-3.1 2.4-6.3 6-10.5Z"/></svg></div>
+    <div>
+      <div class="eyebrow">نبض NABD · INV-2026-001 · توزيع المهام</div>
+      <h1>قائمة المهام وتوزيعها على الفِرق</h1>
+      <p class="lede">مشتقّة من خطة الطريق (م٠–م٥). لكل مهمة: الفريق المسؤول (R)، فريق الإسناد، الأولوية، والمُخرَج. الأولوية: <span class="pri p1">P1 حرِج</span> · <span class="pri p2">P2 مهم</span> · <span class="pri p3">P3 لاحق</span>.</p>
+    </div>
+    <button class="themebtn" id="themeBtn" title="تبديل السمة" aria-label="تبديل السمة">◐</button>
+  </div>
+
+  <div class="legend">
+    <span class="team-chip"><i style="background:var(--gov)"></i> الحوكمة والابتكار (PMO)</span>
+    <span class="team-chip"><i style="background:var(--sec)"></i> أمن OT / SOC</span>
+    <span class="team-chip"><i style="background:var(--dev)"></i> التطوير والبيانات</span>
+    <span class="team-chip"><i style="background:var(--ops)"></i> التشغيل</span>
+    <span class="team-chip"><i style="background:var(--mnt)"></i> الصيانة والموثوقية</span>
+  </div>
+
+  <!-- GOVERNANCE -->
+  <div class="team">
+    <div class="th"><span class="sw" style="background:var(--gov)"></span><div><h2>الحوكمة والابتكار — PMO</h2><div class="role">الاعتماد · المؤشرات · المنافسون · تقييم المورّدين · التقديم</div></div><span class="cnt">6 مهام</span></div>
+    <table>
+      <thead><tr><th>#</th><th>المرحلة</th><th>المهمة</th><th>أولوية</th><th>إسناد</th><th>المُخرَج</th></tr></thead>
+      <tbody>
+        <tr><td class="id">G-01</td><td class="ph">م٠</td><td>اعتماد نطاق OTCC وتسجيل المبادرة INV-2026-001</td><td><span class="pri p1">P1</span></td><td class="supp">أمن OT</td><td class="out">نطاق معتمد موثّق</td></tr>
+        <tr><td class="id">G-02</td><td class="ph">م٠</td><td>تعريف مؤشرات كل مرحلة وبوابة Go/No-Go بعد المحطة التجريبية</td><td><span class="pri p1">P1</span></td><td class="supp">التشغيل</td><td class="out">لوحة مؤشرات + معايير القبول</td></tr>
+        <tr><td class="id">G-03</td><td class="ph">م٢–م٥</td><td>متابعة الالتزام بالجدول والميزانية وإدارة المخاطر</td><td><span class="pri p2">P2</span></td><td class="supp">الكل</td><td class="out">تقرير حالة دوري</td></tr>
+        <tr><td class="id">G-04</td><td class="ph">م٥</td><td>تجهيز وتقديم النتائج لبرنامج التميّز / ورقة MIFF</td><td><span class="pri p3">P3</span></td><td class="supp">التطوير</td><td class="out">عرض + ورقة مبادرة</td></tr>
+        <tr><td class="id">G-05</td><td class="ph">م٠</td><td>تحليل المنافسين ومقارنة الحلول (Nozomi وبدائلها + منصّات المياه)</td><td><span class="pri p2">P2</span></td><td class="supp">أمن OT · التطوير</td><td class="out">مصفوفة مقارنة</td></tr>
+        <tr><td class="id">G-06</td><td class="ph">م٠</td><td>إعداد قائمة أسئلة تقييم المورّدين (RFP/RFI) لـ Nozomi والجدار الناري والتكامل</td><td><span class="pri p2">P2</span></td><td class="supp">أمن OT</td><td class="out">قائمة أسئلة معتمدة</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- OT SECURITY -->
+  <div class="team">
+    <div class="th"><span class="sw" style="background:var(--sec)"></span><div><h2>أمن OT / SOC</h2><div class="role">Nozomi · الجدار الناري · SIEM · الثغرات</div></div><span class="cnt">7 مهام</span></div>
+    <table>
+      <thead><tr><th>#</th><th>المرحلة</th><th>المهمة</th><th>أولوية</th><th>إسناد</th><th>المُخرَج</th></tr></thead>
+      <tbody>
+        <tr><td class="id">S-01</td><td class="ph">م٠</td><td>تقييم أمني للربط قراءة‑فقط ضمن OTCC</td><td><span class="pri p1">P1</span></td><td class="supp">PMO</td><td class="out">اعتماد أمني</td></tr>
+        <tr><td class="id">S-02</td><td class="ph">م١</td><td>تركيب Nozomi Guardian سلبياً على مرآة منفذ (SPAN/TAP) + جرد أولي</td><td><span class="pri p1">P1</span></td><td class="supp">التطوير</td><td class="out">جرد أصول حي</td></tr>
+        <tr><td class="id">S-03</td><td class="ph">م١</td><td>تصنيف المناطق (Zones) وربط الأصول بمناطق DMA</td><td><span class="pri p2">P2</span></td><td class="supp">التشغيل</td><td class="out">خريطة مناطق</td></tr>
+        <tr><td class="id">S-04</td><td class="ph">م٣</td><td>تكامل Nozomi → الجدار الناري/NAC (حظر عند حدّ IDMZ، إنسان في الحلقة)</td><td><span class="pri p1">P1</span></td><td class="supp">التطوير</td><td class="out">حلقة إنفاذ فعّالة</td></tr>
+        <tr><td class="id">S-05</td><td class="ph">م٣</td><td>تصدير التنبيهات إلى Wazuh (SIEM) وإلى طبقة الثقة في NABD</td><td><span class="pri p2">P2</span></td><td class="supp">التطوير</td><td class="out">تدفّق تنبيهات موثّق</td></tr>
+        <tr><td class="id">S-06</td><td class="ph">م٤</td><td>تفعيل تغذيات CISA/PSIRT/CVE ومطابقتها بجرد الأصول</td><td><span class="pri p2">P2</span></td><td class="supp">الصيانة</td><td class="out">تنبيه «أصل مكشوف»</td></tr>
+        <tr><td class="id">S-07</td><td class="ph">م٤</td><td>ترقيع افتراضي مؤقت عبر الجدار الناري للأصول غير المُرقَّعة</td><td><span class="pri p2">P2</span></td><td class="supp">الصيانة</td><td class="out">قواعد حماية مؤقتة</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DEV / DATA -->
+  <div class="team">
+    <div class="th"><span class="sw" style="background:var(--dev)"></span><div><h2>التطوير والبيانات — NABD</h2><div class="role">مصادر البيانات · OPC‑UA · طبقة الثقة · محرّك الطاقة · الاختبار</div></div><span class="cnt">8 مهام</span></div>
+    <table>
+      <thead><tr><th>#</th><th>المرحلة</th><th>المهمة</th><th>أولوية</th><th>إسناد</th><th>المُخرَج</th></tr></thead>
+      <tbody>
+        <tr><td class="id">D-00</td><td class="ph">م١</td><td><b>تحديد مصادر البيانات</b> وربط نقاط الوسم (Tags): أي عدّادات/حساسات، وأي وسوم OPC‑UA/Historian لكل DMA</td><td><span class="pri p1">P1</span></td><td class="supp">التشغيل</td><td class="out">خريطة نقاط الوسم (Tag map)</td></tr>
+        <tr><td class="id">D-01</td><td class="ph">م١</td><td>إنشاء قناة OPC‑UA/Historian قراءة‑فقط في IDMZ (مرآة)</td><td><span class="pri p1">P1</span></td><td class="supp">أمن OT</td><td class="out">تيار بيانات حي</td></tr>
+        <tr><td class="id">D-02</td><td class="ph">م٢</td><td>استبدال محاكاة <span class="mono">tick()</span> بمصدر OPC‑UA حقيقي في NABD</td><td><span class="pri p1">P1</span></td><td class="supp">التشغيل</td><td class="out">NABD على بيانات حقيقية</td></tr>
+        <tr><td class="id">D-03</td><td class="ph">م٢</td><td>معايرة عتبات كشف الفاقد وطبقة الثقة على سلوك الشبكة الفعلي</td><td><span class="pri p2">P2</span></td><td class="supp">التشغيل</td><td class="out">عتبات مضبوطة</td></tr>
+        <tr><td class="id">D-04</td><td class="ph">م٣</td><td>واجهة استقبال تنبيهات Vantage (API/Syslog) داخل طبقة الثقة</td><td><span class="pri p2">P2</span></td><td class="supp">أمن OT</td><td class="out">تكامل Nozomi↔NABD</td></tr>
+        <tr><td class="id">D-05</td><td class="ph">م٤</td><td>ربط تنبيهات الثغرات بمولّد أوامر العمل</td><td><span class="pri p3">P3</span></td><td class="supp">الصيانة</td><td class="out">أمر عمل آلي</td></tr>
+        <tr><td class="id">D-06</td><td class="ph">م٥</td><td>تفعيل محرّك تحسين أحمال المضخات على بيانات حقيقية</td><td><span class="pri p3">P3</span></td><td class="supp">التشغيل</td><td class="out">توصية توزيع أمثل</td></tr>
+        <tr><td class="id">D-07</td><td class="ph">م٢</td><td><b>اختبار النظام</b>: تحقّق من دقة كشف الفاقد وطبقة الثقة مقابل أحداث معروفة (تسرب حقيقي/حساس مزيّف)</td><td><span class="pri p1">P1</span></td><td class="supp">التشغيل · أمن OT</td><td class="out">تقرير اختبار (دقة/إنذار كاذب)</td></tr>
+        <tr><td class="id">D-08</td><td class="ph">م٢–م٣</td><td>اختبار القبول التشغيلي (UAT) مع المشغّلين قبل التوسعة</td><td><span class="pri p2">P2</span></td><td class="supp">التشغيل</td><td class="out">اعتماد UAT</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- OPERATIONS -->
+  <div class="team">
+    <div class="th"><span class="sw" style="background:var(--ops)"></span><div><h2>التشغيل — Operations</h2><div class="role">المحطة التجريبية · خطوط أساس MNF · NRW</div></div><span class="cnt">4 مهام</span></div>
+    <table>
+      <thead><tr><th>#</th><th>المرحلة</th><th>المهمة</th><th>أولوية</th><th>إسناد</th><th>المُخرَج</th></tr></thead>
+      <tbody>
+        <tr><td class="id">O-01</td><td class="ph">م٠</td><td>اختيار محطة / منطقة DMA تجريبية بمعايير واضحة</td><td><span class="pri p1">P1</span></td><td class="supp">PMO</td><td class="out">محطة معتمدة</td></tr>
+        <tr><td class="id">O-02</td><td class="ph">م٢</td><td>بناء خطوط أساس التدفق الليلي الأدنى (MNF) لكل DMA</td><td><span class="pri p1">P1</span></td><td class="supp">التطوير</td><td class="out">خطوط أساس مرجعية</td></tr>
+        <tr><td class="id">O-03</td><td class="ph">م٢–م٣</td><td>التحقق الميداني من التسربات المؤكَّدة (إغلاق حلقة أوامر العمل)</td><td><span class="pri p2">P2</span></td><td class="supp">الصيانة</td><td class="out">تأكيد ميداني</td></tr>
+        <tr><td class="id">O-04</td><td class="ph">م٥</td><td>تعميم NABD على بقية مناطق DMA</td><td><span class="pri p3">P3</span></td><td class="supp">التطوير</td><td class="out">تغطية كاملة</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MAINTENANCE -->
+  <div class="team">
+    <div class="th"><span class="sw" style="background:var(--mnt)"></span><div><h2>الصيانة والموثوقية</h2><div class="role">أوامر العمل · Firmware · نوافذ الصيانة</div></div><span class="cnt">3 مهام</span></div>
+    <table>
+      <thead><tr><th>#</th><th>المرحلة</th><th>المهمة</th><th>أولوية</th><th>إسناد</th><th>المُخرَج</th></tr></thead>
+      <tbody>
+        <tr><td class="id">M-01</td><td class="ph">م٣</td><td>تكامل أوامر العمل مع نظام الصيانة القائم (CMMS)</td><td><span class="pri p2">P2</span></td><td class="supp">التطوير</td><td class="out">أوامر عمل مربوطة</td></tr>
+        <tr><td class="id">M-02</td><td class="ph">م٤</td><td>تحويل تنبيهات الثغرات إلى تحديثات Firmware ضمن نوافذ صيانة محكومة</td><td><span class="pri p2">P2</span></td><td class="supp">أمن OT</td><td class="out">خطة ترقيع محكومة</td></tr>
+        <tr><td class="id">M-03</td><td class="ph">م٤–م٥</td><td>مراجعة الأصول قرب نهاية الدعم (End of Support) وخطة الإحلال</td><td><span class="pri p3">P3</span></td><td class="supp">PMO</td><td class="out">خطة إحلال</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>ملاحظات:</b> «R» = الفريق المسؤول (صاحب المهمة)؛ «إسناد» = فريق داعم. الأولويات تخدم مبدأ «ابدأ بمحطة واحدة»: كل مهام P1 تقع في م٠–م٢ لإثبات القيمة أولاً. لا تُطبَّق أي مهمة تمسّ حلقات التحكم الحية دون موافقة أمن OT (OTCC). مرتبطة بخطة الطريق وحزمة NABD × Nozomi.
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const root=document.documentElement;
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+})();
+</script>

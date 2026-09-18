@@ -1,0 +1,22 @@
+{
+  "name": "@iam/services",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iam/db": "*",
+    "@iam/domain": "*",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.4",
+    "typescript": "6.0.2",
+    "vitest": "^3.2.4"
+  }
+}

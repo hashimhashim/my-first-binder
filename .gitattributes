@@ -1,0 +1,4 @@
+# Shell scripts must stay LF even when checked out on Windows, or the Linux
+# container's shell fails to parse them.
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf

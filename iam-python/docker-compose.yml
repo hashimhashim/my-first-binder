@@ -1,0 +1,58 @@
+# Enterprise IAM + Aegis SIEM + Vantage GRC — one command:  docker compose up --build
+#
+#   IAM platform + UI    -> http://localhost:8010   (sign in, hire/terminate)
+#   Aegis SIEM (demo)    -> http://localhost:9500   (watch users appear/disable)
+#   Vantage GRC (demo)   -> http://localhost:9600   (watch identities appear/disable)
+#
+# IAM is pre-wired to manage both: hire someone in the SOC department and
+# their account is provisioned into the SIEM automatically; hire someone in
+# the Compliance department and their identity is provisioned into the GRC
+# tool automatically. Two independently-shaped downstream systems driven by
+# the same connector framework. PostgreSQL is persisted in a named volume.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: iam_py
+    volumes:
+      - iam_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  siem:
+    build: ./siem-demo
+    ports:
+      - "9500:9500"
+
+  grc:
+    build: ./grc-demo
+    ports:
+      - "9600:9600"
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      siem:
+        condition: service_started
+      grc:
+        condition: service_started
+    environment:
+      IAM_DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/iam_py
+      IAM_JWT_SECRET: ${IAM_JWT_SECRET:-dev-only-change-me}
+      IAM_CREDENTIAL_KEY: ${IAM_CREDENTIAL_KEY:-dev-credential-key-change-me}
+      # Managed downstream targets — the app registers them as applications
+      # on seed.
+      IAM_SIEM_URL: http://siem:9500
+      IAM_GRC_URL: http://grc:9600
+    ports:
+      - "8010:8000"
+
+volumes:
+  iam_pgdata:

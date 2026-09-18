@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IAM Platform</title>
+<style>
+  :root {
+    --bg: #f2f5f4; --surface: #ffffff; --surface-2: #e9eeec;
+    --ink: #1a2422; --muted: #5d6c67; --line: #d5ddda;
+    --accent: #0e6e7e; --accent-ink: #ffffff;
+    --good: #2f7d4f; --good-bg: #e3f0e8;
+    --warn: #96660d; --warn-bg: #f5ecd8;
+    --crit: #b23b2e; --crit-bg: #f6e4e1;
+    --neutral-bg: #e7ebe9;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+    --sans: "Seravek", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1514; --surface: #171f1d; --surface-2: #1e2825;
+      --ink: #e2eae6; --muted: #93a39d; --line: #2b3733;
+      --accent: #56bdcc; --accent-ink: #08262b;
+      --good: #6cc493; --good-bg: #1a2f23; --warn: #d9a84e; --warn-bg: #33290f;
+      --crit: #e07a6d; --crit-bg: #38201c; --neutral-bg: #232e2b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14.5px/1.5 var(--sans); }
+
+  .topbar {
+    display: flex; align-items: center; gap: 18px; padding: 12px 22px;
+    background: var(--surface); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 5;
+  }
+  .brand { font-weight: 700; letter-spacing: -0.01em; }
+  .brand .mark { color: var(--accent); }
+  .brand small { display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; }
+  nav { display: flex; gap: 2px; margin-left: 10px; flex-wrap: wrap; }
+  nav button {
+    border: none; background: none; color: var(--muted); font: 600 13px var(--sans);
+    padding: 7px 12px; border-radius: 6px; cursor: pointer;
+  }
+  nav button:hover { background: var(--surface-2); color: var(--ink); }
+  nav button.active { background: var(--accent); color: var(--accent-ink); }
+  nav button .badge {
+    display: inline-block; min-width: 17px; text-align: center; margin-left: 5px;
+    background: var(--crit); color: #fff; border-radius: 999px;
+    font: 700 10.5px var(--mono); padding: 1px 4px; vertical-align: 1px;
+  }
+  nav button.active .badge { background: var(--accent-ink); color: var(--accent); }
+  .spacer { flex: 1; }
+  .persona { display: flex; align-items: center; gap: 8px; }
+  .persona select {
+    background: var(--surface-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; font: 600 13px var(--sans);
+  }
+  .persona .roles { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+
+  main { max-width: 1060px; margin: 0 auto; padding: 26px 22px 70px; display: flex; flex-direction: column; gap: 18px; }
+  h1 { font-size: 21px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+  .lede { color: var(--muted); margin: 2px 0 0; font-size: 13.5px; max-width: 75ch; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .panel + .panel { margin-top: 12px; }
+  .panel h3 {
+    margin: 0; padding: 11px 16px; font-size: 12px; font-family: var(--mono);
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--line); background: var(--surface-2); font-weight: 600;
+  }
+  .pad { padding: 16px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th { text-align: left; font: 600 10.5px var(--mono); letter-spacing: 0.09em; text-transform: uppercase;
+       color: var(--muted); padding: 9px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .muted { color: var(--muted); }
+
+  .pill { display: inline-block; padding: 1px 9px 2px; border-radius: 999px;
+          font: 600 10.5px var(--mono); letter-spacing: 0.03em; white-space: nowrap; }
+  .pill.good { background: var(--good-bg); color: var(--good); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.crit { background: var(--crit-bg); color: var(--crit); }
+  .pill.neutral { background: var(--neutral-bg); color: var(--muted); }
+  .pill.accent { background: var(--accent); color: var(--accent-ink); }
+
+  button.action {
+    background: var(--accent); color: var(--accent-ink); border: none; border-radius: 6px;
+    font: 600 13px var(--sans); padding: 7px 14px; cursor: pointer;
+  }
+  button.action.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+  button.action.danger { background: var(--crit); color: #fff; }
+  button.action:disabled { opacity: 0.5; cursor: default; }
+  .row-actions { display: flex; gap: 6px; }
+
+  form.request { display: flex; flex-direction: column; gap: 14px; max-width: 620px; }
+  label.field { display: flex; flex-direction: column; gap: 5px; font: 600 12.5px var(--sans); }
+  label.field span.hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  input[type="text"], input[type="date"], select, textarea {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px 10px; font: 400 13.5px var(--sans);
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  .item-row { display: grid; grid-template-columns: 130px 1fr 150px 34px; gap: 8px; align-items: end; }
+  .add-item { align-self: flex-start; }
+  .chain { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chain .stage-chip { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px;
+    padding: 3px 11px; font: 600 12px var(--sans); }
+  .chain .arrow { color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 22px; right: 22px; max-width: 420px; z-index: 10;
+    background: var(--ink); color: var(--bg); border-radius: 8px; padding: 12px 16px;
+    font-size: 13.5px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); display: none;
+  }
+  .toast.err { background: var(--crit); color: #fff; }
+  .toast.show { display: block; }
+  .empty-state { padding: 26px 16px; text-align: center; color: var(--muted); font-size: 13.5px; }
+  .sod-flag { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 6px 10px;
+              font-size: 12.5px; margin-top: 6px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="mark">◆</span> IAM Platform<small>identity governance</small></div>
+    <nav id="nav"></nav>
+    <div class="spacer"></div>
+    <div class="persona">
+      <div class="roles" id="who"></div>
+      <select id="persona"></select>
+    </div>
+  </div>
+  <main id="main"></main>
+  <div class="toast" id="toast"></div>
+
+<script>
+const VIEWS = [
+  {id: 'access',    label: 'My access'},
+  {id: 'request',   label: 'Request access'},
+  {id: 'approvals', label: 'Approvals'},
+  {id: 'reviews',   label: 'Reviews'},
+  {id: 'fulfill',   label: 'Fulfillment'},
+  {id: 'admin',     label: 'Directory & audit'},
+];
+const PERSONA_ROLES = {
+  'alice@contoso.com': 'IAM.User',
+  'mona@contoso.com': 'IAM.User,IAM.Approver,IAM.Admin',
+  'oscar@contoso.com': 'IAM.User,IAM.Approver,IAM.Fulfiller',
+  'sam@contoso.com': 'IAM.User,IAM.Approver,IAM.Auditor',
+  'iam-admin@contoso.com': 'IAM.Admin',
+};
+let state = {view: 'access', actor: localStorage.getItem('actor') || 'alice@contoso.com', me: null, counts: {},
+  authMode: 'dev', msal: null, account: null, apiScope: null};
+
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rolesFor = (actor) => PERSONA_ROLES[actor] || 'IAM.User';
+
+async function bearerToken() {
+  const request = {scopes: [state.apiScope], account: state.account};
+  try {
+    return (await state.msal.acquireTokenSilent(request)).accessToken;
+  } catch {
+    return (await state.msal.acquireTokenPopup(request)).accessToken;
+  }
+}
+
+async function api(path, options = {}) {
+  const authHeaders = state.authMode === 'entra'
+    ? {Authorization: 'Bearer ' + await bearerToken()}
+    : {'x-dev-actor': state.actor, 'x-dev-roles': rolesFor(state.actor)};
+  const res = await fetch(path, {
+    ...options,
+    headers: {'Content-Type': 'application/json', ...authHeaders, ...(options.headers || {})},
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+function toast(message, isError = false) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.className = 'toast show' + (isError ? ' err' : '');
+  setTimeout(() => { el.className = 'toast'; }, 3800);
+}
+
+function pill(status, extra) {
+  const map = {ACTIVE:'good', COMPLETED:'good', MANUAL_CONFIRMED:'good', PROVISIONED:'good', APPROVED:'good', CERTIFIED:'good',
+    PENDING_PROVISIONING:'warn', MANUAL_PENDING:'warn', PENDING_REVOCATION:'warn', PENDING_APPROVAL:'warn', PENDING:'warn', QUEUED:'warn', ESCALATED:'warn',
+    REVOKED:'neutral', CANCELLED:'neutral', FAILED:'crit', REJECTED:'crit'};
+  return `<span class="pill ${map[status] || 'neutral'}">${esc(status)}${extra ? ' · ' + esc(extra) : ''}</span>`;
+}
+const fmtDate = (d) => d ? new Date(d).toISOString().slice(0, 10) : '—';
+
+// ---------------------------------------------------------------- views
+async function viewAccess(el) {
+  const data = await api('/api/my-access');
+  el.innerHTML = `
+    <h1>My access</h1>
+    <p class="lede">Business roles you hold and the technical access they carry. Temporary and exception access always shows its expiry.</p>
+    <div class="panel"><h3>Business roles</h3><div class="tablewrap">${data.roles.length ? `
+      <table><thead><tr><th>Role</th><th>How granted</th><th>Status</th><th>Expires</th></tr></thead><tbody>
+      ${data.roles.map((r) => `<tr><td><b>${esc(r.role)}</b></td><td class="mono">${esc(r.assignment_type)}</td>
+        <td>${pill(r.status)}</td><td class="mono">${fmtDate(r.expires_at)}</td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty-state">No business roles yet.</div>'}</div></div>
+    <div class="panel"><h3>Entitlements</h3><div class="tablewrap">${data.entitlements.length ? `
+      <table><thead><tr><th>Entitlement</th><th>Application</th><th>Origin</th><th>Status</th><th>Expires</th></tr></thead><tbody>
+      ${data.entitlements.map((g) => `<tr><td><b>${esc(g.entitlement)}</b></td><td>${esc(g.application)}</td>
+        <td>${g.assignment_type === 'EXCEPTION' ? '<span class="pill accent">EXCEPTION</span>' : `<span class="pill neutral">${esc(g.assignment_type)}</span>`}</td>
+        <td>${pill(g.status)}</td><td class="mono">${fmtDate(g.expires_at)}</td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty-state">No entitlements yet — request access from the “Request access” tab.</div>'}</div></div>`;
+}
+
+let catalog = null;
+async function viewRequest(el) {
+  catalog = await api('/api/catalog');
+  el.innerHTML = `
+    <h1>Request access</h1>
+    <p class="lede">Approvals are decided by your manager, then the application owner, then security for privileged or exception access. Direct entitlement access always needs an end date.</p>
+    <div class="panel"><div class="pad">
+      <form class="request" id="reqform">
+        <label class="field">Business justification
+          <textarea id="justification" placeholder="What do you need this access for, and for how long?"></textarea></label>
+        <div id="items"></div>
+        <button type="button" class="action secondary add-item" id="additem">+ Add another item</button>
+        <div><button type="submit" class="action">Submit request</button></div>
+      </form>
+      <div id="result"></div>
+    </div></div>`;
+  const items = $('#items');
+  const addItem = () => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <label class="field">Type
+        <select class="itype"><option value="ROLE">Business role</option><option value="ENTITLEMENT">Entitlement</option></select></label>
+      <label class="field">Target<select class="itarget"></select></label>
+      <label class="field">Expires <span class="hint">(required for entitlements)</span><input type="date" class="iexpiry"></label>
+      <button type="button" class="action danger" title="Remove">×</button>`;
+    const fill = () => {
+      const type = div.querySelector('.itype').value;
+      const options = type === 'ROLE'
+        ? catalog.roles.map((r) => `<option value="${r.id}">${esc(r.name)} (${esc(r.risk_level)})</option>`)
+        : catalog.entitlements.map((e) => `<option value="${e.id}">${esc(e.application)} — ${esc(e.name)}${e.is_privileged ? ' ⚠ privileged' : ''}</option>`);
+      div.querySelector('.itarget').innerHTML = options.join('');
+    };
+    div.querySelector('.itype').addEventListener('change', fill);
+    div.querySelector('button').addEventListener('click', () => div.remove());
+    fill();
+    items.appendChild(div);
+  };
+  addItem();
+  $('#additem').addEventListener('click', addItem);
+  $('#reqform').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const payload = {
+      justification: $('#justification').value,
+      items: [...items.querySelectorAll('.item-row')].map((row) => {
+        const type = row.querySelector('.itype').value;
+        const target = row.querySelector('.itarget').value;
+        const expiry = row.querySelector('.iexpiry').value;
+        return {targetType: type, roleId: type === 'ROLE' ? target : undefined,
+          entitlementId: type === 'ENTITLEMENT' ? target : undefined,
+          requestedExpiresAt: expiry ? expiry + 'T23:59:59Z' : null};
+      }),
+    };
+    try {
+      const res = await api('/api/requests', {method: 'POST', body: JSON.stringify(payload)});
+      toast('Request submitted — approvers notified.');
+      $('#result').innerHTML = `
+        <div class="sod-flag" style="background:var(--good-bg);color:var(--good)">Submitted. Approval chain:</div>
+        <div class="chain" style="margin-top:8px">${res.approvalStages.map((s, i) =>
+          `${i ? '<span class="arrow">→</span>' : ''}<span class="stage-chip">${esc(s.stageType)}</span>`).join('')}</div>
+        ${res.sodFlags.length ? `<div class="sod-flag">⚠ Segregation-of-duties flag: ${esc(res.sodFlags[0].ruleName)} — security review required.</div>` : ''}`;
+    } catch (err) { toast(err.message, true); }
+  });
+}
+
+async function viewApprovals(el) {
+  const inbox = await api('/api/approvals/inbox');
+  el.innerHTML = `
+    <h1>Approvals</h1>
+    <p class="lede">Requests waiting on your decision. Stages decide in order — a request reaches you only when earlier stages have approved.</p>
+    <div class="panel"><h3>Pending your decision</h3>${inbox.length ? `<div class="tablewrap">
+      <table><thead><tr><th>For</th><th>Items</th><th>Justification</th><th>Your stage</th><th></th></tr></thead><tbody>
+      ${inbox.map((a) => `<tr>
+        <td><b>${esc(a.beneficiary)}</b><div class="muted" style="font-size:12px">requested by ${esc(a.requester)}</div></td>
+        <td>${(a.items || []).map((i) => `<div>${esc(i.name)} ${i.expires ? `<span class="mono muted">until ${fmtDate(i.expires)}</span>` : ''}</div>`).join('')}
+            ${(a.sod_flags || []).length ? '<div class="sod-flag">⚠ SoD flag — review carefully</div>' : ''}</td>
+        <td class="muted" style="max-width:260px">“${esc(a.justification)}”</td>
+        <td><span class="pill ${a.ready ? 'accent' : 'neutral'}">${esc(a.stage_type)}${a.ready ? '' : ' · waiting'}</span></td>
+        <td><div class="row-actions">
+          <button class="action" ${a.ready ? '' : 'disabled'} onclick="decide('${a.request_id}','APPROVED')">Approve</button>
+          <button class="action danger" ${a.ready ? '' : 'disabled'} onclick="decide('${a.request_id}','REJECTED')">Reject</button>
+        </div></td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty-state">Nothing waiting on you. ✓</div>'}</div>`;
+}
+window.decide = async (requestId, decision) => {
+  const comment = prompt(decision === 'APPROVED' ? 'Optional comment:' : 'Reason for rejection:') || undefined;
+  try {
+    const res = await api(`/api/requests/${requestId}/decision`, {method: 'POST', body: JSON.stringify({decision, comment})});
+    toast(res.fulfilled ? 'Approved — request fulfilled and provisioning queued.' : `Recorded: ${decision}.`);
+    render();
+  } catch (err) { toast(err.message, true); }
+};
+
+async function viewReviews(el) {
+  const inbox = await api('/api/reviews/inbox');
+  el.innerHTML = `
+    <h1>Access reviews</h1>
+    <p class="lede">Recertify or revoke the access you're responsible for. Revoking removes the access — it queues real deprovisioning.</p>
+    <div class="panel"><h3>Your review items</h3>${inbox.length ? `<div class="tablewrap">
+      <table><thead><tr><th>Campaign</th><th>Holder</th><th>Access</th><th>Snapshot</th><th></th></tr></thead><tbody>
+      ${inbox.map((i) => { const s = i.snapshot || {}; return `<tr>
+        <td><b>${esc(i.campaign_name)}</b>${i.due_at ? `<div class="mono muted" style="font-size:11px">due ${fmtDate(i.due_at)}</div>` : ''}</td>
+        <td>${esc(s.holder)}</td>
+        <td>${esc(s.target)}<div class="muted" style="font-size:12px">${esc(s.application || '')}</div></td>
+        <td class="mono" style="font-size:11.5px">${esc(s.assignmentType)} · ${esc(s.status)}${s.expiresAt ? ' · exp ' + fmtDate(s.expiresAt) : ''}</td>
+        <td><div class="row-actions">
+          <button class="action" onclick="review('${i.id}','CERTIFIED')">Certify</button>
+          <button class="action danger" onclick="review('${i.id}','REVOKED')">Revoke</button>
+        </div></td></tr>`; }).join('')}
+      </tbody></table></div>` : '<div class="empty-state">No open review items assigned to you.</div>'}</div>`;
+}
+window.review = async (itemId, decision) => {
+  const comment = prompt(decision === 'CERTIFIED' ? 'Optional comment:' : 'Why revoke?') || undefined;
+  try {
+    await api(`/api/reviews/items/${itemId}/decision`, {method: 'POST', body: JSON.stringify({decision, comment})});
+    toast(decision === 'REVOKED' ? 'Revoked — deprovisioning queued.' : 'Certified.');
+    render();
+  } catch (err) { toast(err.message, true); }
+};
+
+async function viewFulfill(el) {
+  const queue = await api('/api/provisioning/manual-queue');
+  el.innerHTML = `
+    <h1>Manual fulfillment</h1>
+    <p class="lede">Applications without APIs land here. Confirming attests that you performed the change in the target system — the confirmation is audit evidence under your name.</p>
+    <div class="panel"><h3>Queue</h3>${queue.length ? `<div class="tablewrap">
+      <table><thead><tr><th>Job</th><th>Application</th><th>Work to perform</th><th>Status</th><th></th></tr></thead><tbody>
+      ${queue.map((j) => { const p = j.payload || {}; return `<tr>
+        <td class="mono">${esc(j.job_type)}</td><td>${esc(p.application || '')}</td>
+        <td>${esc(j.job_type === 'GRANT' ? 'Grant' : 'Remove')} <b>${esc(p.entitlementCode || '')}</b>
+            <span class="muted">for account ${esc(p.accountIdentifier || 'unlinked — see notes')}</span>
+            ${j.last_error ? `<div class="sod-flag">⚠ ${esc(j.last_error)}</div>` : ''}</td>
+        <td>${pill(j.status)}</td>
+        <td><button class="action" onclick="confirmJob('${j.id}')">Confirm done</button></td></tr>`; }).join('')}
+      </tbody></table></div>` : '<div class="empty-state">Manual queue is empty. ✓</div>'}</div>
+    <p class="lede" style="margin-top:10px"><button class="action secondary" onclick="tick()">Run provisioning tick</button>
+      <span class="muted">— enqueue pending grants and execute automated connectors (dev convenience; a worker does this on schedule in production).</span></p>`;
+}
+window.confirmJob = async (jobId) => {
+  try {
+    await api(`/api/provisioning/jobs/${jobId}/confirm`, {method: 'POST', body: '{}'});
+    toast('Confirmed — grant activated, attributed to you.');
+    render();
+  } catch (err) { toast(err.message, true); }
+};
+window.tick = async () => {
+  try {
+    const res = await api('/api/provisioning/tick', {method: 'POST', body: '{}'});
+    toast(`Tick: ${res.enqueued.grantJobIds.length + res.enqueued.revokeJobIds.length} queued, ${res.run.completed.length} completed, ${res.run.manualRouted.length} to manual.`);
+    render();
+  } catch (err) { toast(err.message, true); }
+};
+
+async function viewAdmin(el) {
+  let identities = [], audit = [], denied = null;
+  try { [identities, audit] = await Promise.all([api('/api/identities'), api('/api/audit')]); }
+  catch (err) { denied = err.message; }
+  el.innerHTML = `
+    <h1>Directory &amp; audit</h1>
+    <p class="lede">The identity repository and the append-only audit trail. Requires read permissions — try the IAM Admin persona if you see a permissions error.</p>
+    ${denied ? `<div class="panel"><div class="empty-state">🔒 ${esc(denied)}</div></div>` : `
+    <div class="panel"><h3>Identities</h3><div class="tablewrap">
+      <table><thead><tr><th>Name</th><th>Type</th><th>Department</th><th>Title</th><th>Status</th></tr></thead><tbody>
+      ${identities.map((i) => `<tr><td><b>${esc(i.displayName)}</b><div class="mono muted" style="font-size:11px">${esc(i.primaryEmail || '')}</div></td>
+        <td class="mono">${esc(i.identityType)}</td><td>${esc(i.department || '—')}</td><td>${esc(i.jobTitle || '—')}</td>
+        <td>${pill(i.status)}</td></tr>`).join('')}
+      </tbody></table></div></div>
+    <div class="panel"><h3>Audit trail (latest 60, append-only)</h3><div class="tablewrap" style="max-height:420px;overflow-y:auto">
+      <table><thead><tr><th>At</th><th>Action</th><th>Entity</th><th>Actor</th></tr></thead><tbody>
+      ${audit.map((e) => `<tr><td class="mono">${esc(e.at)}</td><td class="mono">${esc(e.action)}</td>
+        <td class="mono">${esc(e.entity_type)}</td><td>${esc(e.actor)}</td></tr>`).join('')}
+      </tbody></table></div></div>`}`;
+}
+
+const RENDERERS = {access: viewAccess, request: viewRequest, approvals: viewApprovals,
+  reviews: viewReviews, fulfill: viewFulfill, admin: viewAdmin};
+
+async function refreshCounts() {
+  try {
+    const [approvals, reviews, queue] = await Promise.all([
+      api('/api/approvals/inbox'), api('/api/reviews/inbox'),
+      api('/api/provisioning/manual-queue').catch(() => []),
+    ]);
+    state.counts = {approvals: approvals.length, reviews: reviews.length, fulfill: queue.length};
+  } catch { state.counts = {}; }
+}
+
+function renderNav() {
+  $('#nav').innerHTML = VIEWS.map((v) => {
+    const count = state.counts[v.id];
+    return `<button class="${state.view === v.id ? 'active' : ''}" data-view="${v.id}">
+      ${v.label}${count ? `<span class="badge">${count}</span>` : ''}</button>`;
+  }).join('');
+  document.querySelectorAll('#nav button').forEach((b) =>
+    b.addEventListener('click', () => { state.view = b.dataset.view; render(); }));
+}
+
+async function render() {
+  await refreshCounts();
+  renderNav();
+  if (state.authMode === 'dev') $('#who').textContent = rolesFor(state.actor);
+  const main = $('#main');
+  main.innerHTML = '<p class="lede">Loading…</p>';
+  try { await RENDERERS[state.view](main); }
+  catch (err) { main.innerHTML = `<div class="panel"><div class="empty-state">🔒 ${esc(err.message)}</div></div>`; }
+}
+
+function loadMsal() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://alcdn.msauth.net/browser/2.38.4/js/msal-browser.min.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('could not load the Microsoft sign-in library'));
+    document.head.appendChild(script);
+  });
+}
+
+async function bootEntra(config) {
+  await loadMsal();
+  state.authMode = 'entra';
+  state.apiScope = config.apiScope;
+  state.msal = new msal.PublicClientApplication({
+    auth: {
+      clientId: config.clientId,
+      authority: `https://login.microsoftonline.com/${config.tenantId}`,
+      redirectUri: window.location.origin,
+    },
+    cache: {cacheLocation: 'localStorage'},
+  });
+  await state.msal.initialize();
+  state.account = state.msal.getAllAccounts()[0] ?? null;
+  if (!state.account) {
+    const result = await state.msal.loginPopup({scopes: [config.apiScope]});
+    state.account = result.account;
+  }
+  // Signed-in identity replaces the persona switcher.
+  const me = await api('/api/me');
+  $('#persona').style.display = 'none';
+  $('#who').textContent = `${me.identity.displayName} · ${me.appRoles.join(', ')}`;
+  render();
+}
+
+async function bootDev() {
+  const {personas} = await fetch('/api/dev/personas').then((r) => r.json());
+  const select = $('#persona');
+  select.innerHTML = personas
+    .filter((p) => PERSONA_ROLES[p.primary_email])
+    .map((p) => `<option value="${esc(p.primary_email)}" ${p.primary_email === state.actor ? 'selected' : ''}>
+      ${esc(p.display_name)} — ${esc(p.job_title || '')}</option>`).join('');
+  select.addEventListener('change', () => {
+    state.actor = select.value;
+    localStorage.setItem('actor', state.actor);
+    render();
+  });
+  if (![...select.options].some((o) => o.value === state.actor) && select.options.length) {
+    state.actor = select.options[0].value;
+  }
+  render();
+}
+
+async function boot() {
+  const config = await fetch('/api/config').then((r) => r.json()).catch(() => ({mode: 'dev'}));
+  if (config.mode === 'entra') {
+    try { await bootEntra(config); return; }
+    catch (err) { toast('Sign-in failed: ' + err.message, true); return; }
+  }
+  await bootDev();
+}
+boot();
+</script>
+</body>
+</html>

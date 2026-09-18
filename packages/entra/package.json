@@ -1,0 +1,24 @@
+{
+  "name": "@iam/entra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iam/domain": "*",
+    "@iam/services": "*",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@iam/db": "*",
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.4",
+    "pg": "^8.16.3",
+    "typescript": "6.0.2",
+    "vitest": "^3.2.4"
+  }
+}

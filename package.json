@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "start": "remotion studio",
     "build": "remotion render MyComposition",
-    "preview": "remotion preview"
+    "preview": "remotion preview",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:migrate": "npm run migrate --workspace @iam/db"
   },
   "repository": {
     "type": "git",
